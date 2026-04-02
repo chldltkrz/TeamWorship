@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TeamWorship — 예배팀을 위한 토탈 솔루션</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ======== NAV ======== -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner container">
+      <a href="#" class="nav__logo">
+        <span class="nav__logo-icon">♪</span>
+        TeamWorship
+      </a>
+      <ul class="nav__links" id="navLinks">
+        <li><a href="#features">기능</a></li>
+        <li><a href="#how-it-works">사용법</a></li>
+        <li><a href="#testimonials">후기</a></li>
+        <li><a href="#pricing">요금</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+      <div class="nav__actions">
+        <a href="#cta" class="btn btn--outline btn--sm">로그인</a>
+        <a href="#cta" class="btn btn--primary btn--sm">무료 시작</a>
+      </div>
+      <button class="nav__hamburger" id="hamburger" aria-label="메뉴 열기">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ======== HERO ======== -->
+  <header class="hero" id="hero">
+    <div class="hero__bg-shapes">
+      <div class="hero__circle hero__circle--1"></div>
+      <div class="hero__circle hero__circle--2"></div>
+      <div class="hero__circle hero__circle--3"></div>
+    </div>
+    <div class="hero__inner container">
+      <span class="hero__badge">🎵 예배팀 운영의 새로운 기준</span>
+      <h1 class="hero__title">
+        예배팀을 위한<br>
+        <span class="gradient-text">토탈 솔루션</span>
+      </h1>
+      <p class="hero__desc">
+        일정 관리, 스케줄 작성, 출석 체크, 팀 채팅, 악보 공유까지.<br>
+        흩어진 예배팀 업무를 하나의 공간에서 관리하세요.
+      </p>
+      <div class="hero__cta">
+        <a href="#cta" class="btn btn--primary btn--lg">무료로 시작하기</a>
+        <a href="#features" class="btn btn--ghost btn--lg">기능 살펴보기 ↓</a>
+      </div>
+      <div class="hero__stats">
+        <div class="hero__stat">
+          <strong>500+</strong>
+          <span>예배팀 사용중</span>
+        </div>
+        <div class="hero__stat">
+          <strong>10,000+</strong>
+          <span>사역자 멤버</span>
+        </div>
+        <div class="hero__stat">
+          <strong>4.9</strong>
+          <span>평균 만족도</span>
+        </div>
+      </div>
+    </div>
+    <!-- Hero Mockup -->
+    <div class="hero__mockup container">
+      <div class="mockup-window">
+        <div class="mockup-window__bar">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="mockup-window__body">
+          <div class="mockup-sidebar">
+            <div class="mockup-sidebar__item active">📅 이번주 스케줄</div>
+            <div class="mockup-sidebar__item">💬 주일팀 채팅</div>
+            <div class="mockup-sidebar__item">🎵 악보 라이브러리</div>
+            <div class="mockup-sidebar__item">✅ 출석 현황</div>
+            <div class="mockup-sidebar__item">📊 리포트</div>
+          </div>
+          <div class="mockup-content">
+            <div class="mockup-content__header">
+              <h3>이번주 예배 스케줄</h3>
+              <span class="mockup-badge">4월 1주차</span>
+            </div>
+            <div class="mockup-schedule">
+              <div class="mockup-schedule__row">
+                <span class="mockup-day">주일 1부</span>
+                <div class="mockup-members">
+                  <span class="mockup-avatar" style="background:#6C63FF">김</span>
+                  <span class="mockup-avatar" style="background:#FF6584">이</span>
+                  <span class="mockup-avatar" style="background:#43B89C">박</span>
+                  <span class="mockup-avatar" style="background:#F5A623">최</span>
+                </div>
+                <span class="mockup-status confirmed">확정</span>
+              </div>
+              <div class="mockup-schedule__row">
+                <span class="mockup-day">주일 2부</span>
+                <div class="mockup-members">
+                  <span class="mockup-avatar" style="background:#43B89C">박</span>
+                  <span class="mockup-avatar" style="background:#6C63FF">김</span>
+                  <span class="mockup-avatar" style="background:#E84393">정</span>
+                </div>
+                <span class="mockup-status pending">조율중</span>
+              </div>
+              <div class="mockup-schedule__row">
+                <span class="mockup-day">수요 예배</span>
+                <div class="mockup-members">
+                  <span class="mockup-avatar" style="background:#FF6584">이</span>
+                  <span class="mockup-avatar" style="background:#F5A623">최</span>
+                </div>
+                <span class="mockup-status confirmed">확정</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======== FEATURES ======== -->
+  <section class="features" id="features">
+    <div class="container">
+      <span class="section-tag">Features</span>
+      <h2 class="section-title">예배팀에 필요한 <span class="gradient-text">모든 기능</span></h2>
+      <p class="section-desc">카카오톡, 엑셀, 드라이브 사이를 오가지 마세요. 하나면 충분합니다.</p>
+
+      <div class="features__grid">
+        <!-- 1 -->
+        <div class="feature-card feature-card--highlight">
+          <div class="feature-card__icon">📅</div>
+          <h3 class="feature-card__title">일정 관리 & 스케줄</h3>
+          <p class="feature-card__desc">
+            주간·월간 예배 일정을 한눈에 관리하고,
+            드래그 앤 드롭으로 멤버별 스케줄표를 쉽게 작성하세요.
+            자동 알림으로 놓치는 일정이 없습니다.
+          </p>
+          <ul class="feature-card__list">
+            <li>드래그 앤 드롭 스케줄 편집</li>
+            <li>자동 리마인더 & 푸시 알림</li>
+            <li>반복 일정 설정</li>
+          </ul>
+        </div>
+        <!-- 2 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">✅</div>
+          <h3 class="feature-card__title">출석 체크</h3>
+          <p class="feature-card__desc">
+            원터치로 출석 체크. 멤버별 출석률을 자동 집계하고,
+            참여 현황을 한눈에 파악하세요.
+          </p>
+          <ul class="feature-card__list">
+            <li>QR코드 / 원터치 출석</li>
+            <li>월별 출석 통계</li>
+            <li>결석 사유 관리</li>
+          </ul>
+        </div>
+        <!-- 3 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">💬</div>
+          <h3 class="feature-card__title">팀 채팅 & 소통방</h3>
+          <p class="feature-card__desc">
+            요일별·파트별 채팅방을 만들어 업무 대화를 분리하세요.
+            예배 준비에 집중할 수 있는 소통 환경을 제공합니다.
+          </p>
+          <ul class="feature-card__list">
+            <li>요일별 / 파트별 채팅방</li>
+            <li>파일 & 이미지 공유</li>
+            <li>공지사항 고정</li>
+          </ul>
+        </div>
+        <!-- 4 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">🎵</div>
+          <h3 class="feature-card__title">악보 공유 & 라이브러리</h3>
+          <p class="feature-card__desc">
+            악보를 업로드하면 팀 전체가 바로 열람 가능.
+            곡별·키별로 정리하고, 실시간 코드 전환도 지원합니다.
+          </p>
+          <ul class="feature-card__list">
+            <li>PDF / 이미지 악보 업로드</li>
+            <li>키 변환 (트랜스포즈)</li>
+            <li>셋리스트 구성</li>
+          </ul>
+        </div>
+        <!-- 5 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">🎧</div>
+          <h3 class="feature-card__title">합주 & 리허설 관리</h3>
+          <p class="feature-card__desc">
+            리허설 시간·장소를 설정하고, 참석 여부를 사전에 확인.
+            연습 기록을 남겨 팀의 성장을 추적하세요.
+          </p>
+          <ul class="feature-card__list">
+            <li>리허설 일정 & 장소 관리</li>
+            <li>참석 사전 확인</li>
+            <li>연습 노트 기록</li>
+          </ul>
+        </div>
+        <!-- 6 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">📊</div>
+          <h3 class="feature-card__title">리포트 & 통계</h3>
+          <p class="feature-card__desc">
+            멤버 참여도, 곡 사용 빈도, 출석률 등
+            예배팀 운영에 필요한 인사이트를 자동으로 제공합니다.
+          </p>
+          <ul class="feature-card__list">
+            <li>멤버 참여도 대시보드</li>
+            <li>곡 사용 히스토리</li>
+            <li>월간 리포트 자동 생성</li>
+          </ul>
+        </div>
+        <!-- 7 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">🙏</div>
+          <h3 class="feature-card__title">기도 요청 & 나눔</h3>
+          <p class="feature-card__desc">
+            팀원 간 기도 요청을 나누고 서로 응원하세요.
+            영적 교제가 더 깊어지는 공간을 제공합니다.
+          </p>
+          <ul class="feature-card__list">
+            <li>기도 요청 게시판</li>
+            <li>익명 기도 요청</li>
+            <li>기도 응답 나눔</li>
+          </ul>
+        </div>
+        <!-- 8 -->
+        <div class="feature-card">
+          <div class="feature-card__icon">🔔</div>
+          <h3 class="feature-card__title">알림 & 공지</h3>
+          <p class="feature-card__desc">
+            중요한 공지를 놓치지 않도록 푸시 알림, 카카오톡 연동,
+            이메일 알림을 한번에 설정하세요.
+          </p>
+          <ul class="feature-card__list">
+            <li>푸시 / 카카오 / 이메일 알림</li>
+            <li>읽음 확인 기능</li>
+            <li>긴급 공지 모드</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== HOW IT WORKS ======== -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <span class="section-tag">How It Works</span>
+      <h2 class="section-title">3단계로 <span class="gradient-text">바로 시작</span></h2>
+      <p class="section-desc">복잡한 설정 없이, 가입하고 팀을 만들면 끝입니다.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step__number">1</div>
+          <h3 class="step__title">팀 생성</h3>
+          <p class="step__desc">교회 이름과 예배 팀을 등록하세요. 30초면 충분합니다.</p>
+        </div>
+        <div class="step__connector"></div>
+        <div class="step">
+          <div class="step__number">2</div>
+          <h3 class="step__title">멤버 초대</h3>
+          <p class="step__desc">링크 하나로 팀원을 초대하세요. 카카오톡으로도 보낼 수 있어요.</p>
+        </div>
+        <div class="step__connector"></div>
+        <div class="step">
+          <div class="step__number">3</div>
+          <h3 class="step__title">예배 준비 시작</h3>
+          <p class="step__desc">스케줄 작성, 악보 공유, 채팅까지. 이제 한 곳에서 관리하세요.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== TESTIMONIALS ======== -->
+  <section class="testimonials" id="testimonials">
+    <div class="container">
+      <span class="section-tag">Testimonials</span>
+      <h2 class="section-title">사역자들의 <span class="gradient-text">생생한 후기</span></h2>
+      <div class="testimonials__grid">
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__text">
+            "카카오톡에서 스케줄 조율하느라 메시지가 묻히던 게 사라졌어요.
+            이제 누가 언제 서빙하는지 한눈에 보여서 너무 편합니다."
+          </p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar" style="background:#6C63FF">김</div>
+            <div>
+              <strong>김지영</strong>
+              <span>S**교회 · 찬양인도자</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__text">
+            "악보 키 변환 기능이 정말 혁신이에요. 매번 새로 악보 만들 필요 없이
+            앱에서 바로 트랜스포즈하니까 리허설이 훨씬 수월해졌어요."
+          </p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar" style="background:#43B89C">박</div>
+            <div>
+              <strong>박성호</strong>
+              <span>E**교회 · 건반</span>
+            </div>
+          </div>
+        </div>
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__text">
+            "출석 관리를 엑셀로 하다가 넘어왔는데, 자동 집계가 되니까
+            팀장 입장에서 업무가 반으로 줄었어요. 강력 추천합니다!"
+          </p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar" style="background:#FF6584">이</div>
+            <div>
+              <strong>이하은</strong>
+              <span>S**교회 · 워십팀장</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== PRICING ======== -->
+  <section class="pricing" id="pricing">
+    <div class="container">
+      <span class="section-tag">Pricing</span>
+      <h2 class="section-title">심플한 <span class="gradient-text">요금제</span></h2>
+      <p class="section-desc">소규모 팀은 무료로 시작하세요. 언제든지 업그레이드할 수 있습니다.</p>
+      <div class="pricing__grid">
+        <!-- Free -->
+        <div class="pricing-card">
+          <span class="pricing-card__badge">무료</span>
+          <div class="pricing-card__price">
+            <span class="pricing-card__amount">₩0</span>
+            <span class="pricing-card__period">/월</span>
+          </div>
+          <p class="pricing-card__desc">소규모 예배팀에 딱 맞는 시작</p>
+          <ul class="pricing-card__features">
+            <li>✓ 멤버 10명까지</li>
+            <li>✓ 기본 스케줄 관리</li>
+            <li>✓ 출석 체크</li>
+            <li>✓ 팀 채팅 1개방</li>
+            <li>✓ 악보 저장 50곡</li>
+          </ul>
+          <a href="#cta" class="btn btn--outline btn--block">무료로 시작</a>
+        </div>
+        <!-- Pro -->
+        <div class="pricing-card pricing-card--popular">
+          <span class="pricing-card__badge">인기</span>
+          <div class="pricing-card__price">
+            <span class="pricing-card__amount">₩9,900</span>
+            <span class="pricing-card__period">/월</span>
+          </div>
+          <p class="pricing-card__desc">성장하는 예배팀을 위한 프로 플랜</p>
+          <ul class="pricing-card__features">
+            <li>✓ 멤버 50명까지</li>
+            <li>✓ 고급 스케줄 & 자동 배정</li>
+            <li>✓ 출석 통계 & 리포트</li>
+            <li>✓ 무제한 채팅방</li>
+            <li>✓ 악보 무제한 저장</li>
+            <li>✓ 키 변환 (트랜스포즈)</li>
+            <li>✓ 카카오톡 알림 연동</li>
+          </ul>
+          <a href="#cta" class="btn btn--primary btn--block">프로 시작하기</a>
+        </div>
+        <!-- Church -->
+        <div class="pricing-card">
+          <span class="pricing-card__badge">교회 전체</span>
+          <div class="pricing-card__price">
+            <span class="pricing-card__amount">₩29,900</span>
+            <span class="pricing-card__period">/월</span>
+          </div>
+          <p class="pricing-card__desc">여러 팀을 통합 관리하는 교회용</p>
+          <ul class="pricing-card__features">
+            <li>✓ 멤버 무제한</li>
+            <li>✓ 다중 팀 관리</li>
+            <li>✓ 관리자 권한 설정</li>
+            <li>✓ 프로 플랜 전체 기능</li>
+            <li>✓ 우선 지원 & 교육</li>
+            <li>✓ 데이터 내보내기</li>
+            <li>✓ 전용 온보딩 지원</li>
+          </ul>
+          <a href="#cta" class="btn btn--outline btn--block">문의하기</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== FAQ ======== -->
+  <section class="faq" id="faq">
+    <div class="container">
+      <span class="section-tag">FAQ</span>
+      <h2 class="section-title">자주 묻는 <span class="gradient-text">질문</span></h2>
+      <div class="faq__list">
+        <details class="faq-item">
+          <summary class="faq-item__question">무료 플랜에서 유료로 전환하면 데이터가 유지되나요?</summary>
+          <p class="faq-item__answer">네, 모든 데이터(스케줄, 악보, 채팅 기록 등)가 그대로 유지됩니다. 언제든 업그레이드·다운그레이드가 가능합니다.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-item__question">앱 설치가 필요한가요?</summary>
+          <p class="faq-item__answer">웹 브라우저에서 바로 사용할 수 있으며, iOS/Android 앱도 제공합니다. 모바일에서도 모든 기능을 동일하게 이용하실 수 있습니다.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-item__question">여러 예배팀을 동시에 관리할 수 있나요?</summary>
+          <p class="faq-item__answer">교회 플랜에서는 찬양팀, 음향팀, 미디어팀 등 여러 팀을 하나의 계정으로 통합 관리할 수 있습니다.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-item__question">악보 저작권 문제는 어떻게 되나요?</summary>
+          <p class="faq-item__answer">TeamWorship은 악보 저장 및 공유 플랫폼을 제공하며, 저작권이 있는 악보의 사용 권한은 각 교회에서 직접 관리해 주셔야 합니다. CCLI 등의 라이선스 연동을 지원합니다.</p>
+        </details>
+        <details class="faq-item">
+          <summary class="faq-item__question">기존 엑셀 데이터를 가져올 수 있나요?</summary>
+          <p class="faq-item__answer">네, CSV/Excel 파일을 통한 멤버 목록, 스케줄 데이터 가져오기를 지원합니다. 온보딩 시 무료로 마이그레이션을 도와드립니다.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== CTA ======== -->
+  <section class="cta" id="cta">
+    <div class="container">
+      <div class="cta__inner">
+        <h2 class="cta__title">예배팀 운영,<br>이제 <span class="gradient-text">TeamWorship</span>으로</h2>
+        <p class="cta__desc">무료로 시작하고, 팀에 맞게 성장하세요.</p>
+        <form class="cta__form" id="ctaForm">
+          <input type="email" class="cta__input" placeholder="이메일 주소를 입력하세요" required>
+          <button type="submit" class="btn btn--primary btn--lg">무료로 시작하기</button>
+        </form>
+        <p class="cta__note">신용카드 없이 시작 · 언제든 해지 가능</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======== FOOTER ======== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <div class="footer__brand">
+          <a href="#" class="nav__logo">
+            <span class="nav__logo-icon">♪</span>
+            TeamWorship
+          </a>
+          <p>예배팀을 위한 토탈 솔루션.<br>함께 만들어가는 더 나은 예배.</p>
+        </div>
+        <div class="footer__col">
+          <h4>서비스</h4>
+          <a href="#features">기능 소개</a>
+          <a href="#pricing">요금제</a>
+          <a href="#">업데이트 노트</a>
+          <a href="#">로드맵</a>
+        </div>
+        <div class="footer__col">
+          <h4>지원</h4>
+          <a href="#faq">FAQ</a>
+          <a href="#">문의하기</a>
+          <a href="#">가이드</a>
+          <a href="#">커뮤니티</a>
+        </div>
+        <div class="footer__col">
+          <h4>법적 고지</h4>
+          <a href="#">이용약관</a>
+          <a href="#">개인정보처리방침</a>
+          <a href="#">쿠키 정책</a>
+        </div>
+      </div>
+      <div class="footer__bottom">
+        <p>&copy; 2026 TeamWorship. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
