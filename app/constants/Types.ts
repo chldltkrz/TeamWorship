@@ -15,6 +15,34 @@ export interface ScheduleItem {
   status: 'confirmed' | 'pending' | 'cancelled';
 }
 
+// 파트별 역할 정의
+export type PartRole = '예배인도' | '기타' | '건반' | '일렉' | '베이스' | '드럼' | '싱어' | '음향' | 'PPT' | '온라인';
+
+export interface PartCandidate {
+  memberId: string;
+  name: string;
+  color: string;
+  unavailableDates: string[]; // 불가 날짜 목록
+}
+
+export interface PartPool {
+  role: PartRole;
+  candidates: PartCandidate[];
+}
+
+// 월간 스케줄 한 행 (날짜별 배정)
+export interface MonthlyScheduleRow {
+  date: string;
+  dayLabel: string;       // "1일 (수)", "5일 (일)" 등
+  note?: string;          // "부활절", "성 금요일" 등
+  services: ServiceAssignment[];
+}
+
+export interface ServiceAssignment {
+  serviceLabel?: string;  // "1부", "2부" (주일만)
+  slots: { role: PartRole; members: string[] }[];
+}
+
 export interface ChatRoom {
   id: string;
   name: string;

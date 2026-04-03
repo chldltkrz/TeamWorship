@@ -1,4 +1,4 @@
-import { Member, ScheduleItem, ChatRoom, SheetMusic, AttendanceRecord, MusicRoom } from './Types';
+import { Member, ScheduleItem, ChatRoom, SheetMusic, AttendanceRecord, MusicRoom, PartPool, MonthlyScheduleRow } from './Types';
 import { Brand } from './Colors';
 
 export const members: Member[] = [
@@ -129,6 +129,278 @@ export const sheetMusic: SheetMusic[] = [
   { id: '6', title: '날 향한 약속', artist: '어노인팅', key: 'C', bpm: 65, tags: ['경배', '느린'], addedAt: '2026-03-10', usedCount: 10 },
   { id: '7', title: '예수 우리 왕이여', artist: 'Hillsong', key: 'G', bpm: 140, tags: ['찬양', '빠른'], addedAt: '2026-03-05', usedCount: 18 },
   { id: '8', title: '하나님의 은혜', artist: '마커스', key: 'F', bpm: 70, tags: ['경배', '느린'], addedAt: '2026-03-01', usedCount: 9 },
+];
+
+// 파트별 후보자 풀
+export const partPools: PartPool[] = [
+  { role: '예배인도', candidates: [
+    { memberId: 'p1', name: '김강래', color: '#6C63FF', unavailableDates: ['2026-04-08'] },
+    { memberId: 'p2', name: '최기현', color: '#5A52D5', unavailableDates: [] },
+    { memberId: 'p3', name: '심재원', color: '#A5A0FF', unavailableDates: ['2026-04-05'] },
+    { memberId: 'p4', name: '임한', color: '#7B73FF', unavailableDates: ['2026-04-01'] },
+    { memberId: 'p5', name: '이지웅', color: '#8B83FF', unavailableDates: [] },
+  ]},
+  { role: '기타', candidates: [
+    { memberId: 'g1', name: '최이삭', color: '#43B89C', unavailableDates: [] },
+    { memberId: 'g2', name: '임성수', color: '#2FA882', unavailableDates: ['2026-04-05'] },
+    { memberId: 'g3', name: '조은', color: '#5CC8AC', unavailableDates: [] },
+    { memberId: 'g4', name: '양민정', color: '#37C09A', unavailableDates: ['2026-04-01', '2026-04-08'] },
+  ]},
+  { role: '건반', candidates: [
+    { memberId: 'k1', name: '김강래', color: '#F5A623', unavailableDates: [] },
+    { memberId: 'k2', name: '정병혁', color: '#E09620', unavailableDates: ['2026-04-01', '2026-04-08'] },
+  ]},
+  { role: '일렉', candidates: [
+    { memberId: 'e1', name: '정병혁', color: '#FF6584', unavailableDates: [] },
+  ]},
+  { role: '베이스', candidates: [
+    { memberId: 'b1', name: '소유진', color: '#0984E3', unavailableDates: [] },
+    { memberId: 'b2', name: '손상민', color: '#0B73C5', unavailableDates: ['2026-04-01'] },
+  ]},
+  { role: '드럼', candidates: [
+    { memberId: 'd1', name: '이승완', color: '#E84393', unavailableDates: [] },
+    { memberId: 'd2', name: '최이삭', color: '#D63584', unavailableDates: [] },
+    { memberId: 'd3', name: '소유빈', color: '#F060A8', unavailableDates: ['2026-04-01'] },
+    { memberId: 'd4', name: '김종윤', color: '#C82878', unavailableDates: [] },
+  ]},
+  { role: '싱어', candidates: [
+    { memberId: 's1', name: '장은지', color: '#FD79A8', unavailableDates: [] },
+    { memberId: 's2', name: '양진아', color: '#E86FA0', unavailableDates: ['2026-04-05'] },
+    { memberId: 's3', name: '최주영', color: '#F56B9F', unavailableDates: [] },
+    { memberId: 's4', name: '공미성', color: '#FF85B3', unavailableDates: [] },
+    { memberId: 's5', name: '이일권', color: '#D45D8A', unavailableDates: ['2026-04-08'] },
+    { memberId: 's6', name: '김지연', color: '#E76B9B', unavailableDates: [] },
+    { memberId: 's7', name: '양나영', color: '#F07DAD', unavailableDates: [] },
+    { memberId: 's8', name: '나혜정', color: '#C94F7A', unavailableDates: [] },
+    { memberId: 's9', name: '배우리', color: '#E26393', unavailableDates: [] },
+    { memberId: 's10', name: '조수인', color: '#D5578A', unavailableDates: [] },
+    { memberId: 's11', name: '이장관', color: '#CD4D80', unavailableDates: [] },
+    { memberId: 's12', name: '임현', color: '#DA5F90', unavailableDates: ['2026-04-01'] },
+  ]},
+  { role: '음향', candidates: [
+    { memberId: 'a1', name: '채수길', color: '#00B894', unavailableDates: [] },
+    { memberId: 'a2', name: '박명훈', color: '#00A381', unavailableDates: [] },
+    { memberId: 'a3', name: '김영찬', color: '#00CC99', unavailableDates: ['2026-04-01'] },
+    { memberId: 'a4', name: '이현진', color: '#009E76', unavailableDates: [] },
+    { memberId: 'a5', name: '임보을', color: '#00B389', unavailableDates: [] },
+    { memberId: 'a6', name: '고지훈', color: '#00C28E', unavailableDates: [] },
+    { memberId: 'a7', name: '장형진', color: '#008F6B', unavailableDates: [] },
+    { memberId: 'a8', name: '양필영', color: '#00A87F', unavailableDates: [] },
+    { memberId: 'a9', name: '조은(지후)', color: '#00BD8A', unavailableDates: ['2026-04-08'] },
+    { memberId: 'a10', name: '박지후', color: '#009A73', unavailableDates: [] },
+    { memberId: 'a11', name: '김예경', color: '#00AE83', unavailableDates: [] },
+    { memberId: 'a12', name: '차도성', color: '#00C594', unavailableDates: [] },
+    { memberId: 'a13', name: '정예경', color: '#008768', unavailableDates: [] },
+  ]},
+  { role: '온라인', candidates: [
+    { memberId: 'o1', name: '이동현', color: '#636E72', unavailableDates: [] },
+    { memberId: 'o2', name: '조성화', color: '#747D81', unavailableDates: ['2026-04-05'] },
+    { memberId: 'o3', name: '추창성', color: '#545D61', unavailableDates: [] },
+    { memberId: 'o4', name: '김은미', color: '#6B7478', unavailableDates: ['2026-04-01'] },
+    { memberId: 'o5', name: '동현(민정)', color: '#5C6569', unavailableDates: [] },
+  ]},
+];
+
+// 2026년 4월 월간 스케줄 (사진 기반)
+export const monthlySchedule: MonthlyScheduleRow[] = [
+  {
+    date: '2026-04-01', dayLabel: '1일 (수)', services: [{
+      slots: [
+        { role: '예배인도', members: ['김강래'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['장은지', '양진아'] },
+        { role: '음향', members: ['채수길', '박명훈'] },
+        { role: '온라인', members: ['이동현'] },
+      ],
+    }],
+  },
+  {
+    date: '2026-04-03', dayLabel: '3일 (금)', note: '성 금요일',
+    services: [{
+      slots: [
+        { role: '예배인도', members: ['심재원'] },
+        { role: '건반', members: ['최이삭'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['이승완'] },
+        { role: '싱어', members: ['최주영', '공미성'] },
+        { role: '음향', members: ['고지훈', '조은'] },
+        { role: '온라인', members: ['조성화'] },
+      ],
+    }],
+  },
+  {
+    date: '2026-04-05', dayLabel: '5일 (일)', note: '부활절',
+    services: [
+      { serviceLabel: '1부', slots: [
+        { role: '예배인도', members: ['김강래'] },
+        { role: '건반', members: ['최이삭'] },
+        { role: '일렉', members: ['정병혁'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['이승완'] },
+        { role: '싱어', members: ['이일권', '김지연'] },
+        { role: '음향', members: ['김영찬', '이현진'] },
+        { role: '온라인', members: ['이동현'] },
+      ]},
+      { serviceLabel: '2부', slots: [
+        { role: '예배인도', members: ['임한'] },
+        { role: '건반', members: ['조은'] },
+        { role: '일렉', members: ['정병혁'] },
+        { role: '베이스', members: ['손상민'] },
+        { role: '드럼', members: ['소유빈'] },
+        { role: '싱어', members: ['공미성', '임현'] },
+        { role: '음향', members: ['고지훈(은미)', '박명훈'] },
+        { role: '온라인', members: ['추창성(지은,민정)'] },
+      ]},
+    ],
+  },
+  {
+    date: '2026-04-08', dayLabel: '8일 (수)', services: [{
+      slots: [
+        { role: '예배인도', members: ['최기현'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['김지연', '양진아'] },
+        { role: '음향', members: ['김영찬', '임보을'] },
+        { role: '온라인', members: ['이동현'] },
+      ],
+    }],
+  },
+  {
+    date: '2026-04-10', dayLabel: '10일 (금)', note: '거룩한 성회',
+    services: [
+      { serviceLabel: '1부', slots: [
+        { role: '예배인도', members: ['임한'] },
+        { role: '건반', members: ['최이삭'] },
+        { role: '일렉', members: ['김강래'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['이승완'] },
+        { role: '싱어', members: ['조수인', '양나영'] },
+        { role: '음향', members: ['장형진(은미)', '박명훈'] },
+        { role: '온라인', members: ['추창성'] },
+      ]},
+      { serviceLabel: '2부', slots: [
+        { role: '건반', members: ['조은'] },
+        { role: '온라인', members: ['추창성'] },
+      ]},
+    ],
+  },
+  {
+    date: '2026-04-12', dayLabel: '12일 (일)',
+    services: [
+      { serviceLabel: '1부', slots: [
+        { role: '예배인도', members: ['최기현'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '일렉', members: ['정병혁'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['배우리', '양진아'] },
+        { role: '음향', members: ['채수길', '양필영'] },
+        { role: '온라인', members: ['추창성'] },
+      ]},
+      { serviceLabel: '2부', slots: [
+        { role: '예배인도', members: ['이지웅'] },
+        { role: '건반', members: ['최이삭'] },
+        { role: '일렉', members: ['김강래'] },
+        { role: '베이스', members: ['손상민'] },
+        { role: '드럼', members: ['김종윤'] },
+        { role: '싱어', members: ['장은지', '양나영'] },
+        { role: '음향', members: ['장형진', '조은(지후)'] },
+        { role: '온라인', members: ['동현(민정)'] },
+      ]},
+    ],
+  },
+  {
+    date: '2026-04-15', dayLabel: '15일 (수)', services: [{
+      slots: [
+        { role: '예배인도', members: ['심재원'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['장은지', '이일권'] },
+        { role: '음향', members: ['채수길', '박지후'] },
+        { role: '온라인', members: ['추창성'] },
+      ],
+    }],
+  },
+  {
+    date: '2026-04-19', dayLabel: '19일 (일)',
+    services: [
+      { serviceLabel: '1부', slots: [
+        { role: '예배인도', members: ['김강래'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '일렉', members: ['정병혁'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['이승완'] },
+        { role: '싱어', members: ['나혜정', '김지연'] },
+        { role: '음향', members: ['김영찬', '차도성'] },
+        { role: '온라인', members: ['이동현'] },
+      ]},
+      { serviceLabel: '2부', slots: [
+        { role: '예배인도', members: ['심재원'] },
+        { role: '건반', members: ['조은'] },
+        { role: '일렉', members: ['정병혁'] },
+        { role: '베이스', members: ['손상민'] },
+        { role: '드럼', members: ['소유빈'] },
+        { role: '싱어', members: ['최주영', '조수인'] },
+        { role: '음향', members: ['김은미', '박지후'] },
+        { role: '온라인', members: ['창성(민정)'] },
+      ]},
+    ],
+  },
+  {
+    date: '2026-04-22', dayLabel: '22일 (수)', services: [{
+      slots: [
+        { role: '예배인도', members: ['최기현'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['김지연', '나혜정'] },
+        { role: '음향', members: ['김영찬', '임보을'] },
+        { role: '온라인', members: ['이동현'] },
+      ],
+    }],
+  },
+  {
+    date: '2026-04-26', dayLabel: '26일 (일)',
+    services: [
+      { serviceLabel: '1부', slots: [
+        { role: '예배인도', members: ['최기현'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '일렉', members: ['김강래'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['이장관', '나혜정'] },
+        { role: '음향', members: ['채수길', '양필영'] },
+        { role: '온라인', members: ['추창성'] },
+      ]},
+      { serviceLabel: '2부', slots: [
+        { role: '예배인도', members: ['임한'] },
+        { role: '건반', members: ['최이삭'] },
+        { role: '일렉', members: ['정병혁'] },
+        { role: '베이스', members: ['손상민'] },
+        { role: '드럼', members: ['소유빈'] },
+        { role: '싱어', members: ['정예경', '양나영'] },
+        { role: '음향', members: ['고지훈', '임보을'] },
+        { role: '온라인', members: ['동현(지은)'] },
+      ]},
+    ],
+  },
+  {
+    date: '2026-04-29', dayLabel: '29일 (수)', services: [{
+      slots: [
+        { role: '예배인도', members: ['심재원'] },
+        { role: '건반', members: ['임성수'] },
+        { role: '베이스', members: ['소유진'] },
+        { role: '드럼', members: ['최이삭'] },
+        { role: '싱어', members: ['배우리', '이장관'] },
+        { role: '음향', members: ['장형진', '박명훈'] },
+        { role: '온라인', members: ['이동현'] },
+      ],
+    }],
+  },
 ];
 
 // 실시간 악보방
