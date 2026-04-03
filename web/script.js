@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const animateSelectors = [
     '.feature-card',
     '.step',
+    '.solution-card',
     '.testimonial-card',
     '.pricing-card',
     '.faq-item',
