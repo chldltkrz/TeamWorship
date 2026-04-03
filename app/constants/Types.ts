@@ -37,6 +37,23 @@ export interface SheetMusic {
   usedCount: number;
 }
 
+// 실시간 악보 협업방
+export interface MusicRoom {
+  id: string;
+  name: string;
+  songTitle: string;
+  songArtist: string;
+  key: string;
+  activeUsers: { name: string; color: string }[];
+  pageCount: number;
+  currentPage: number;
+  hasAnnotations: boolean;
+  songForm: string[];   // Intro, V1, Chorus, Bridge 등
+  isLive: boolean;      // 실시간 세션 활성 여부
+  createdBy: string;
+  lastActivity: string;
+}
+
 export interface AttendanceRecord {
   id: string;
   memberId: string;

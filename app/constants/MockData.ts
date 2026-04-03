@@ -1,4 +1,4 @@
-import { Member, ScheduleItem, ChatRoom, SheetMusic, AttendanceRecord } from './Types';
+import { Member, ScheduleItem, ChatRoom, SheetMusic, AttendanceRecord, MusicRoom } from './Types';
 import { Brand } from './Colors';
 
 export const members: Member[] = [
@@ -129,6 +129,77 @@ export const sheetMusic: SheetMusic[] = [
   { id: '6', title: '날 향한 약속', artist: '어노인팅', key: 'C', bpm: 65, tags: ['경배', '느린'], addedAt: '2026-03-10', usedCount: 10 },
   { id: '7', title: '예수 우리 왕이여', artist: 'Hillsong', key: 'G', bpm: 140, tags: ['찬양', '빠른'], addedAt: '2026-03-05', usedCount: 18 },
   { id: '8', title: '하나님의 은혜', artist: '마커스', key: 'F', bpm: 70, tags: ['경배', '느린'], addedAt: '2026-03-01', usedCount: 9 },
+];
+
+// 실시간 악보방
+export const musicRooms: MusicRoom[] = [
+  {
+    id: 'room-1',
+    name: '주일 1부 셋리스트',
+    songTitle: '주의 이름 높이며',
+    songArtist: '마커스',
+    key: 'G',
+    activeUsers: [
+      { name: '김지영', color: Brand.primary },
+      { name: '박성호', color: Brand.accent },
+      { name: '최민수', color: Brand.orange },
+    ],
+    pageCount: 4,
+    currentPage: 2,
+    hasAnnotations: true,
+    songForm: ['Intro', 'V1', 'V2', 'Chorus', 'Bridge', 'Chorus', 'Outro'],
+    isLive: true,
+    createdBy: '김지영',
+    lastActivity: '방금 전',
+  },
+  {
+    id: 'room-2',
+    name: '주일 2부 셋리스트',
+    songTitle: '살아계신 주',
+    songArtist: '어노인팅',
+    key: 'A',
+    activeUsers: [
+      { name: '이하은', color: Brand.pink },
+      { name: '한세준', color: '#0984E3' },
+    ],
+    pageCount: 3,
+    currentPage: 1,
+    hasAnnotations: false,
+    songForm: ['Intro', 'V1', 'Chorus', 'V2', 'Chorus', 'Bridge', 'Chorus'],
+    isLive: true,
+    createdBy: '이하은',
+    lastActivity: '2분 전',
+  },
+  {
+    id: 'room-3',
+    name: '수요 예배',
+    songTitle: '여호와 이레',
+    songArtist: '마커스',
+    key: 'E',
+    activeUsers: [],
+    pageCount: 2,
+    currentPage: 1,
+    hasAnnotations: true,
+    songForm: ['V1', 'V2', 'Chorus', 'Outro'],
+    isLive: false,
+    createdBy: '최민수',
+    lastActivity: '3시간 전',
+  },
+  {
+    id: 'room-4',
+    name: '금요 기도회',
+    songTitle: '날 향한 약속',
+    songArtist: '어노인팅',
+    key: 'C',
+    activeUsers: [],
+    pageCount: 3,
+    currentPage: 1,
+    hasAnnotations: false,
+    songForm: ['Intro', 'V1', 'Chorus', 'Bridge', 'Chorus'],
+    isLive: false,
+    createdBy: '김지영',
+    lastActivity: '어제',
+  },
 ];
 
 export const attendanceRecords: AttendanceRecord[] = [
