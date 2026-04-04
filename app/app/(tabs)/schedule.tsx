@@ -1,5 +1,6 @@
 import { StyleSheet, ScrollView, View, Text, Pressable, Platform } from 'react-native';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors, { Brand } from '@/constants/Colors';
@@ -113,6 +114,7 @@ function autoGenerate(
 function WeekView({ scheduleData }: { scheduleData: MonthlyScheduleRow[] }) {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
+  const { unavailAlerts } = useSchedule();
   const [selectedDay, setSelectedDay] = useState(today.getDay());
   const weekDates = getWeekDates();
 
@@ -195,7 +197,10 @@ function WeekView({ scheduleData }: { scheduleData: MonthlyScheduleRow[] }) {
                     </Text>
                   </View>
                   <Text style={[styles.slotMembers, { color: colors.text }]} numberOfLines={1}>
-                    {slot.members.join(', ')}
+                    {slot.members.map((m) => {
+                      const hasAlert = unavailAlerts.some((a) => a.memberName === m && a.date === dateStr && !a.resolved);
+                      return hasAlert ? `⚠️ ${m}` : m;
+                    }).join(', ')}
                   </Text>
                 </View>
               ))}
@@ -667,6 +672,7 @@ function FullScheduleView({
 }) {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
+  const { unavailAlerts } = useSchedule();
   const [editingCell, setEditingCell] = useState<{
     date: string; si: number; role: PartRole;
   } | null>(null);
@@ -677,7 +683,11 @@ function FullScheduleView({
     const svc = row.services[serviceIdx];
     if (!svc) return '';
     const slot = svc.slots.find((s) => s.role === role);
-    return slot ? slot.members.join(' ') : '·';
+    if (!slot) return '·';
+    return slot.members.map((m) => {
+      const hasAlert = unavailAlerts.some((a) => a.memberName === m && a.date === row.date && !a.resolved);
+      return hasAlert ? `⚠️${m}` : m;
+    }).join(' ');
   };
 
   const handleSelectMember = (memberName: string) => {
@@ -891,7 +901,13 @@ function FullScheduleView({
 export default function ScheduleScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
+  const params = useLocalSearchParams<{ view?: string }>();
   const [view, setView] = useState<ViewMode>('week');
+
+  useEffect(() => {
+    if (params.view === 'generate') setView('generate');
+    else if (params.view === 'full') setView('full');
+  }, [params.view]);
   const { scheduleData, setScheduleData } = useSchedule();
   const [genState, setGenState] = useState<GenerateState>(() => {
     // 기본값: 수(3), 금(5), 일(0) 요일의 모든 날짜 선택

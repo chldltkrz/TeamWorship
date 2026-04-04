@@ -96,7 +96,7 @@ export default function ChatRoomScreen() {
   const roomId = (id as string) || '';
   const isWorshipRoom = roomId.startsWith('worship-');
 
-  const { checkIn, isCheckedIn, getAttendanceEntry, setMeetingTime, getMeetingTime } = useSchedule();
+  const { checkIn, isCheckedIn, getAttendanceEntry, setMeetingTime, getMeetingTime, unavailAlerts } = useSchedule();
   const contextChecked = isCheckedIn(currentUser, roomId);
   const [localChecked, setLocalChecked] = useState(false);
   const isChecked = contextChecked || localChecked;
@@ -244,6 +244,23 @@ export default function ChatRoomScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        {/* Unavail Alerts */}
+        {isWorshipRoom && unavailAlerts.filter((a) => a.roomId === roomId && !a.resolved).map((alert) => (
+          <View key={alert.id} style={[styles.unavailAlertBar, { backgroundColor: `${Brand.orange}12`, borderBottomColor: colors.border }]}>
+            <FontAwesome name="warning" size={16} color={Brand.orange} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.unavailAlertTitle, { color: Brand.orange }]}>
+                {alert.memberName} ({alert.role}) 불가
+              </Text>
+              {alert.suggestions.length > 0 && (
+                <Text style={[styles.unavailAlertSub, { color: colors.textSecondary }]}>
+                  대체 가능: {alert.suggestions.join(', ')}
+                </Text>
+              )}
+            </View>
+          </View>
+        ))}
+
         {/* Attendance Check Banner */}
         {isWorshipRoom && (
           <Pressable
@@ -436,6 +453,14 @@ export default function ChatRoomScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  // Unavail Alert
+  unavailAlertBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1,
+  },
+  unavailAlertTitle: { fontSize: 14, fontWeight: '700' },
+  unavailAlertSub: { fontSize: 12, marginTop: 2 },
 
   // Check-in Banner
   checkInBanner: {

@@ -1,6 +1,6 @@
 import { StyleSheet, ScrollView, View, Text, Pressable, TextInput, Modal } from 'react-native';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useEffect } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors, { Brand } from '@/constants/Colors';
@@ -32,7 +32,12 @@ export default function MusicScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<TabType>('rooms');
+
+  useEffect(() => {
+    if (params.tab === 'library') setTab('library');
+  }, [params.tab]);
   const [selectedKey, setSelectedKey] = useState('전체');
   const [search, setSearch] = useState('');
 

@@ -144,14 +144,18 @@ export default function MyPageScreen() {
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           {[
             { icon: 'users', label: '멤버 관리', desc: '멤버 초대 및 역할 설정', color: Brand.primary, leaderOnly: true, route: '/member-manage' },
-            { icon: 'calendar-plus-o', label: '스케줄 자동생성', desc: '월간 예배 스케줄 생성', color: Brand.primary, leaderOnly: true },
-            { icon: 'bar-chart', label: '출석 리포트', desc: '멤버별 출석률 · 지각 통계', badge: 'NEW', color: Brand.accent },
-            { icon: 'file-text-o', label: '악보 라이브러리', desc: `${8}곡 등록됨`, color: Brand.primary },
-            { icon: 'flag', label: '기도 요청', desc: '기도 나눔 게시판', color: Brand.orange },
+            { icon: 'calendar-plus-o', label: '스케줄 자동생성', desc: '월간 예배 스케줄 생성', color: Brand.primary, leaderOnly: true, action: 'schedule-generate' },
+            { icon: 'bar-chart', label: '출석 리포트', desc: '멤버별 출석률 · 지각 통계', badge: 'NEW', color: Brand.accent, route: '/attendance-report' },
+            { icon: 'file-text-o', label: '악보 라이브러리', desc: `${8}곡 등록됨`, color: Brand.primary, action: 'music-library' },
+            { icon: 'flag', label: '기도 요청', desc: '기도 나눔 게시판', color: Brand.orange, route: '/prayer' },
           ].filter((item) => !item.leaderOnly || isLeader).map((item, i, arr) => (
             <Pressable
               key={item.label}
-              onPress={() => item.route && router.push(item.route as any)}
+              onPress={() => {
+                if (item.route) router.push(item.route as any);
+                else if ((item as any).action === 'schedule-generate') router.push('/(tabs)/schedule?view=generate' as any);
+                else if ((item as any).action === 'music-library') router.push('/(tabs)/music?tab=library' as any);
+              }}
               style={({ pressed }) => [
                 styles.menuItem,
                 { backgroundColor: pressed ? colors.surfaceSecondary : 'transparent' },
@@ -184,12 +188,13 @@ export default function MyPageScreen() {
           {[
             { icon: 'bell', label: '알림 설정', desc: '푸시, 카카오톡, 이메일' },
             { icon: 'moon-o', label: '다크 모드', desc: '시스템 설정 따르기' },
-            { icon: 'calendar-times-o', label: '불가 날짜 관리', desc: '내 불가일 설정' },
+            { icon: 'calendar-times-o', label: '불가 날짜 관리', desc: '내 불가일 설정', route: '/my-unavailable' },
             { icon: 'shield', label: '개인정보 & 보안', desc: '비밀번호, 로그인 관리' },
             { icon: 'download', label: '데이터 내보내기', desc: 'CSV, Excel 형식' },
           ].map((item, i, arr) => (
             <Pressable
               key={item.label}
+              onPress={() => (item as any).route && router.push((item as any).route)}
               style={({ pressed }) => [
                 styles.menuItem,
                 { backgroundColor: pressed ? colors.surfaceSecondary : 'transparent' },

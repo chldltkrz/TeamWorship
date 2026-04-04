@@ -132,7 +132,7 @@ export default function ChatScreen() {
   const colors = Colors[colorScheme];
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
-  const { scheduleData, closedRooms } = useSchedule();
+  const { scheduleData, closedRooms, unavailAlerts } = useSchedule();
   const router = useRouter();
 
   const allRooms = useMemo(() => generateChatRooms(scheduleData, closedRooms), [scheduleData, closedRooms]);
@@ -259,6 +259,19 @@ export default function ChatScreen() {
                     </View>
                   )}
                 </View>
+                {/* Unavail Alert */}
+                {(() => {
+                  const roomAlerts = unavailAlerts.filter((a) => a.roomId === room.id && !a.resolved);
+                  if (roomAlerts.length === 0) return null;
+                  return (
+                    <View style={[styles.alertBanner, { backgroundColor: `${Brand.orange}12` }]}>
+                      <FontAwesome name="warning" size={11} color={Brand.orange} />
+                      <Text style={[styles.alertText, { color: Brand.orange }]} numberOfLines={1}>
+                        {roomAlerts[0].memberName} {roomAlerts[0].role} 불가 · 대체 필요
+                      </Text>
+                    </View>
+                  );
+                })()}
                 {/* Member preview */}
                 <View style={styles.memberPreview}>
                   {room.members.slice(0, 5).map((name, i) => (
@@ -368,6 +381,12 @@ const styles = StyleSheet.create({
   },
   unreadText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   // Member preview
+  alertBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6, marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  alertText: { fontSize: 11, fontWeight: '600' },
   memberPreview: { flexDirection: 'row', flexWrap: 'wrap' },
   memberName: { fontSize: 11 },
   // Empty

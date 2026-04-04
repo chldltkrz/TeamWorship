@@ -4,6 +4,18 @@ import type { MonthlyScheduleRow } from './Types';
 
 export type AttendanceStatus = 'present' | 'late';
 
+export interface UnavailAlert {
+  id: string;
+  memberName: string;
+  date: string;
+  dayLabel: string;
+  role: string;        // 해당 멤버의 배정 파트
+  roomId: string;      // worship-{date}-{si}
+  roomName: string;
+  suggestions: string[]; // 대체 가능 멤버
+  resolved: boolean;
+}
+
 export interface AttendanceEntry {
   memberName: string;
   checkedAt: string;
@@ -31,6 +43,10 @@ interface ScheduleContextType {
   closedRooms: Set<string>;
   closeRoom: (roomId: string) => void;
   isRoomClosed: (roomId: string) => boolean;
+  // 불가일 알림
+  unavailAlerts: UnavailAlert[];
+  addUnavailAlerts: (alerts: UnavailAlert[]) => void;
+  resolveAlert: (alertId: string) => void;
 }
 
 const ScheduleContext = createContext<ScheduleContextType>({
@@ -49,6 +65,9 @@ const ScheduleContext = createContext<ScheduleContextType>({
   closedRooms: new Set(),
   closeRoom: () => {},
   isRoomClosed: () => false,
+  unavailAlerts: [],
+  addUnavailAlerts: () => {},
+  resolveAlert: () => {},
 });
 
 export function ScheduleProvider({ children }: { children: ReactNode }) {
@@ -56,6 +75,7 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
   const [attendanceMap, setAttendanceMap] = useState<Record<string, AttendanceEntry>>({});
   const [meetingTimes, setMeetingTimesState] = useState<Record<string, number>>({});
   const [closedRooms, setClosedRooms] = useState<Set<string>>(new Set());
+  const [unavailAlerts, setUnavailAlerts] = useState<UnavailAlert[]>([]);
   const meetingTimesRef = useRef(meetingTimes);
   meetingTimesRef.current = meetingTimes;
 
@@ -107,12 +127,21 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     return closedRooms.has(roomId);
   };
 
+  const addUnavailAlerts = useCallback((alerts: UnavailAlert[]) => {
+    setUnavailAlerts((prev) => [...alerts, ...prev]);
+  }, []);
+
+  const resolveAlert = useCallback((alertId: string) => {
+    setUnavailAlerts((prev) => prev.map((a) => a.id === alertId ? { ...a, resolved: true } : a));
+  }, []);
+
   return (
     <ScheduleContext.Provider value={{
       scheduleData, setScheduleData, updateScheduleData,
       attendanceMap, checkIn, cancelCheckIn, isCheckedIn, getAttendanceByDate, getAttendanceEntry,
       meetingTimes, setMeetingTime, getMeetingTime,
       closedRooms, closeRoom, isRoomClosed,
+      unavailAlerts, addUnavailAlerts, resolveAlert,
     }}>
       {children}
     </ScheduleContext.Provider>

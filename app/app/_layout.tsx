@@ -75,6 +75,9 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="chat/[id]" options={{ headerShown: true }} />
         <Stack.Screen name="member-manage" options={{ headerShown: true }} />
+        <Stack.Screen name="attendance-report" options={{ headerShown: true }} />
+        <Stack.Screen name="prayer" options={{ headerShown: true }} />
+        <Stack.Screen name="my-unavailable" options={{ headerShown: true }} />
         <Stack.Screen name="music-room/[id]" options={{ headerShown: true }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: '설정' }} />
       </Stack>
