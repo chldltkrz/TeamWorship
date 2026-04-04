@@ -39,25 +39,24 @@ function getWeekDates() {
   });
 }
 
-// 자동 스케줄 생성 알고리즘
+// 자동 스케줄 생성 알고리즘 (날짜 기반)
 function autoGenerate(
-  selectedDays: number[],
-  servicesPerDay: Record<number, number>,
+  selectedDates: Set<string>,
+  servicesPerDate: Record<string, number>,
   year: number,
-  month: number, // 0-indexed
+  month: number,
 ): MonthlyScheduleRow[] {
   const result: MonthlyScheduleRow[] = [];
   const d = new Date(year, month, 1);
 
-  // 파트별 라운드로빈 카운터 (서비스 횟수 누적)
   const counters: Record<string, number> = {};
   partPools.forEach((p) => { counters[p.role] = 0; });
 
   while (d.getMonth() === month) {
-    if (selectedDays.includes(d.getDay())) {
-      const dateStr = toLocalDateStr(d);
+    const dateStr = toLocalDateStr(d);
+    if (selectedDates.has(dateStr)) {
       const dayChar = days[d.getDay()];
-      const numServices = servicesPerDay[d.getDay()] || 1;
+      const numServices = servicesPerDate[dateStr] || 1;
 
       // 이 날짜 전체에서 이미 배정된 사람 (부 간 중복 허용하되 같은 부 내에서는 겹치지 않게)
       const services: ServiceAssignment[] = [];
@@ -215,7 +214,7 @@ function WeekView({ scheduleData }: { scheduleData: MonthlyScheduleRow[] }) {
 
         {/* Upcoming */}
         <SectionHeader title="다가오는 일정" />
-        {scheduleData.filter((r) => r.date >= toLocalDateStr(today)).slice(0, 4).map((row) => (
+        {scheduleData.filter((r) => r.date > dateStr && r.date >= toLocalDateStr(today)).slice(0, 4).map((row) => (
           <Card key={row.date}>
             <View style={styles.upcomingRow}>
               <View style={[styles.upcomingDate, { backgroundColor: `${Brand.primary}20` }]}>
@@ -228,11 +227,13 @@ function WeekView({ scheduleData }: { scheduleData: MonthlyScheduleRow[] }) {
               </View>
               <View style={styles.upcomingInfo}>
                 <Text style={[styles.upcomingTitle, { color: colors.text }]}>
-                  {row.services.length > 1 ? `주일 예배 (${row.services.length}부)` : '예배'}
-                  {row.note ? ` · ${row.note}` : ''}
+                  {row.dayLabel.replace('(일)', '(주일)')}{row.services.length > 1 ? ` (${row.services.length}부)` : ''} 예배
                 </Text>
+                {row.note && (
+                  <Text style={[styles.upcomingNote, { color: Brand.orange }]}>{row.note}</Text>
+                )}
                 <Text style={[styles.upcomingMeta, { color: colors.textSecondary }]}>
-                  {row.services[0].slots.length}개 파트 배정
+                  {row.services[0].slots.length}개 파트 · {row.services[0].slots.flatMap(s => s.members).filter(Boolean).length}명 배정
                 </Text>
               </View>
               <FontAwesome name="angle-right" size={18} color={colors.textSecondary} />
@@ -246,9 +247,26 @@ function WeekView({ scheduleData }: { scheduleData: MonthlyScheduleRow[] }) {
 
 // ============ AUTO GENERATE VIEW ============
 interface GenerateState {
-  selectedDays: number[];
-  servicesPerDay: Record<number, number>;
+  selectedDates: Set<string>;       // 선택된 날짜 (YYYY-MM-DD)
+  servicesPerDate: Record<string, number>; // 날짜별 부수
   generated: boolean;
+}
+
+// 월간 캘린더 데이터 생성
+function getMonthCalendar(year: number, month: number) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks: (number | null)[][] = [];
+  let week: (number | null)[] = Array(firstDay).fill(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  }
+  if (week.length > 0) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+  return weeks;
 }
 
 function GenerateView({
@@ -263,65 +281,72 @@ function GenerateView({
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
+  const [editingMember, setEditingMember] = useState<{ role: string; memberId: string; name: string } | null>(null);
+  const [tempUnavail, setTempUnavail] = useState<Set<string>>(new Set());
 
-  const { selectedDays, servicesPerDay, generated } = state;
+  const { selectedDates, servicesPerDate, generated } = state;
+  const year = 2026;
+  const month = 3; // April (0-indexed)
+  const weeks = useMemo(() => getMonthCalendar(year, month), []);
 
-  const setSelectedDays = (fn: (prev: number[]) => number[]) => {
-    onStateChange({ ...state, selectedDays: fn(state.selectedDays), generated: false });
-  };
-  const setServicesPerDay = (fn: (prev: Record<number, number>) => Record<number, number>) => {
-    onStateChange({ ...state, servicesPerDay: fn(state.servicesPerDay), generated: false });
-  };
-  const setGenerated = (v: boolean) => {
-    onStateChange({ ...state, generated: v });
+  const makeDateStr = (day: number) => {
+    return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   };
 
-  const toggleDay = (dayIndex: number) => {
-    if (selectedDays.includes(dayIndex)) {
-      const nextDays = selectedDays.filter((d) => d !== dayIndex);
-      const nextServices = { ...servicesPerDay };
-      delete nextServices[dayIndex];
-      onStateChange({ ...state, selectedDays: nextDays, servicesPerDay: nextServices, generated: false });
+  const toggleDate = (day: number) => {
+    const dateStr = makeDateStr(day);
+    const next = new Set(selectedDates);
+    const nextServices = { ...servicesPerDate };
+    if (next.has(dateStr)) {
+      next.delete(dateStr);
+      delete nextServices[dateStr];
     } else {
-      onStateChange({
-        ...state,
-        selectedDays: [...selectedDays, dayIndex].sort((a, b) => a - b),
-        servicesPerDay: { ...servicesPerDay, [dayIndex]: 1 },
-        generated: false,
-      });
+      next.add(dateStr);
+      nextServices[dateStr] = 1;
     }
+    onStateChange({ ...state, selectedDates: next, servicesPerDate: nextServices, generated: false });
   };
 
-  const cycleServiceCount = (dayIndex: number) => {
+  const toggleWeekday = (dayIndex: number) => {
+    // 해당 요일의 모든 날짜
+    const datesOfDay: string[] = [];
+    const d = new Date(year, month, 1);
+    while (d.getMonth() === month) {
+      if (d.getDay() === dayIndex) datesOfDay.push(toLocalDateStr(d));
+      d.setDate(d.getDate() + 1);
+    }
+    const allSelected = datesOfDay.every((dt) => selectedDates.has(dt));
+    const next = new Set(selectedDates);
+    const nextServices = { ...servicesPerDate };
+    datesOfDay.forEach((dt) => {
+      if (allSelected) { next.delete(dt); delete nextServices[dt]; }
+      else { next.add(dt); if (!nextServices[dt]) nextServices[dt] = 1; }
+    });
+    onStateChange({ ...state, selectedDates: next, servicesPerDate: nextServices, generated: false });
+  };
+
+  const cycleServiceCount = (dateStr: string) => {
+    const current = servicesPerDate[dateStr] || 1;
     onStateChange({
       ...state,
-      servicesPerDay: {
-        ...servicesPerDay,
-        [dayIndex]: (servicesPerDay[dayIndex] || 1) >= 3 ? 1 : (servicesPerDay[dayIndex] || 1) + 1,
-      },
+      servicesPerDate: { ...servicesPerDate, [dateStr]: current >= 3 ? 1 : current + 1 },
       generated: false,
     });
   };
 
-  // 선택한 요일로 해당 월의 날짜 계산
-  const generateDates = useMemo(() => {
-    const year = 2026;
-    const month = 3; // April (0-indexed)
-    const dates: { date: string; dayLabel: string; dayIndex: number }[] = [];
+  // 요일별 전체 선택 상태
+  const weekdayStatus = (dayIndex: number) => {
     const d = new Date(year, month, 1);
+    const dates: string[] = [];
     while (d.getMonth() === month) {
-      if (selectedDays.includes(d.getDay())) {
-        const dateStr = toLocalDateStr(d);
-        dates.push({
-          date: dateStr,
-          dayLabel: `${d.getDate()}일 (${days[d.getDay()]})`,
-          dayIndex: d.getDay(),
-        });
-      }
+      if (d.getDay() === dayIndex) dates.push(toLocalDateStr(d));
       d.setDate(d.getDate() + 1);
     }
-    return dates;
-  }, [selectedDays]);
+    const count = dates.filter((dt) => selectedDates.has(dt)).length;
+    return { total: dates.length, selected: count, all: count === dates.length };
+  };
+
+  const selectedCount = selectedDates.size;
 
   return (
     <ScrollView style={{ flex: 1 }}>
@@ -332,12 +357,12 @@ function GenerateView({
           <View style={styles.infoBannerText}>
             <Text style={[styles.infoBannerTitle, { color: colors.text }]}>스케줄 자동 생성</Text>
             <Text style={[styles.infoBannerDesc, { color: colors.textSecondary }]}>
-              예배 요일을 선택하고, 파트별 후보자를 설정하면{'\n'}겹치지 않게 자동으로 배정합니다
+              예배 날짜를 선택하고 파트별 멤버를 설정하면{'\n'}겹치지 않게 자동으로 배정합니다
             </Text>
           </View>
         </View>
 
-        {/* Month Selector */}
+        {/* Month Header */}
         <View style={styles.monthSelector}>
           <Pressable style={styles.monthNav}>
             <FontAwesome name="chevron-left" size={14} color={colors.textSecondary} />
@@ -348,77 +373,98 @@ function GenerateView({
           </Pressable>
         </View>
 
-        {/* Day Selector */}
-        <SectionHeader title="예배 요일 선택" />
+        {/* Weekday Quick Select */}
+        <View style={styles.weekdayQuickRow}>
+          {days.map((day, i) => {
+            const ws = weekdayStatus(i);
+            return (
+              <Pressable
+                key={i}
+                onPress={() => toggleWeekday(i)}
+                style={[
+                  styles.weekdayQuickBtn,
+                  ws.all ? { backgroundColor: Brand.primary }
+                    : ws.selected > 0 ? { backgroundColor: `${Brand.primary}40` }
+                    : { backgroundColor: colors.surfaceSecondary },
+                ]}
+              >
+                <Text style={[
+                  styles.weekdayQuickText,
+                  { color: ws.all || ws.selected > 0 ? '#fff' : colors.textSecondary },
+                  i === 0 && ws.selected === 0 && { color: Brand.pink },
+                ]}>
+                  {i === 0 ? '주일' : day}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Calendar Grid */}
         <Card>
-          <View style={styles.daySelector}>
-            {days.map((day, i) => {
-              const isActive = selectedDays.includes(i);
-              return (
-                <Pressable
-                  key={i}
-                  onPress={() => toggleDay(i)}
-                  style={[
-                    styles.daySelectorItem,
-                    isActive
-                      ? { backgroundColor: Brand.primary }
-                      : { backgroundColor: colors.surfaceSecondary },
-                  ]}
-                >
-                  <Text style={[
-                    styles.daySelectorText,
-                    { color: isActive ? '#fff' : colors.textSecondary },
-                    i === 0 && !isActive && { color: Brand.pink },
-                  ]}>
-                    {day}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          {/* Calendar Header */}
+          <View style={styles.calendarHeaderRow}>
+            {days.map((day, i) => (
+              <View key={i} style={styles.calendarHeaderCell}>
+                <Text style={[
+                  styles.calendarHeaderText,
+                  { color: i === 0 ? Brand.pink : colors.textSecondary },
+                ]}>
+                  {i === 0 ? '주일' : day}
+                </Text>
+              </View>
+            ))}
           </View>
 
-          {/* Service count per day */}
-          {selectedDays.length > 0 && (
-            <View style={styles.serviceCountSection}>
-              <Text style={[styles.serviceCountLabel, { color: colors.textSecondary }]}>
-                요일별 예배 부수 (탭하여 변경)
-              </Text>
-              <View style={styles.serviceCountRow}>
-                {selectedDays.map((di) => (
+          {/* Calendar Weeks */}
+          {weeks.map((week, wi) => (
+            <View key={wi} style={styles.calendarWeekRow}>
+              {week.map((day, di) => {
+                if (day === null) return <View key={di} style={styles.calendarCell} />;
+                const dateStr = makeDateStr(day);
+                const isSelected = selectedDates.has(dateStr);
+                const svcCount = servicesPerDate[dateStr] || 1;
+                return (
                   <Pressable
                     key={di}
-                    onPress={() => cycleServiceCount(di)}
-                    style={[styles.serviceCountChip, { borderColor: colors.border }]}
+                    onPress={() => toggleDate(day)}
+                    onLongPress={() => { if (isSelected) cycleServiceCount(dateStr); }}
+                    style={[
+                      styles.calendarCell,
+                      isSelected && { backgroundColor: Brand.primary, borderRadius: 10 },
+                    ]}
                   >
-                    <Text style={[styles.serviceCountDay, { color: Brand.primary }]}>{days[di]}</Text>
-                    <Text style={[styles.serviceCountNum, { color: colors.text }]}>
-                      {servicesPerDay[di] || 1}부
+                    <Text style={[
+                      styles.calendarDayText,
+                      { color: isSelected ? '#fff' : di === 0 ? Brand.pink : colors.text },
+                    ]}>
+                      {day}
                     </Text>
+                    {isSelected && (
+                      <Pressable onPress={() => cycleServiceCount(dateStr)}>
+                        <Text style={styles.calendarSvcText}>{svcCount}부</Text>
+                      </Pressable>
+                    )}
                   </Pressable>
-                ))}
-              </View>
+                );
+              })}
             </View>
-          )}
+          ))}
 
-          {/* Preview dates */}
-          {generateDates.length > 0 && (
-            <View style={[styles.previewDates, { borderTopColor: colors.border }]}>
-              <Text style={[styles.previewLabel, { color: colors.textSecondary }]}>
-                생성될 일정 ({generateDates.length}개)
-              </Text>
-              <View style={styles.previewDateChips}>
-                {generateDates.map((gd) => (
-                  <View key={gd.date} style={[styles.previewDateChip, { backgroundColor: colors.surfaceSecondary }]}>
-                    <Text style={[styles.previewDateText, { color: colors.text }]}>{gd.dayLabel}</Text>
-                    <Text style={[styles.previewServiceText, { color: colors.textSecondary }]}>
-                      {servicesPerDay[gd.dayIndex] || 1}부
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          <Text style={[styles.calendarHint, { color: colors.textSecondary }]}>
+            탭: 날짜 선택/해제 · 부수 탭하여 변경 (1→2→3부)
+          </Text>
         </Card>
+
+        {/* Selected Summary */}
+        {selectedCount > 0 && (
+          <View style={[styles.selectedSummary, { backgroundColor: `${Brand.accent}10`, borderColor: `${Brand.accent}30` }]}>
+            <FontAwesome name="calendar-check-o" size={16} color={Brand.accent} />
+            <Text style={[styles.selectedSummaryText, { color: colors.text }]}>
+              {selectedCount}개 예배일 선택됨
+            </Text>
+          </View>
+        )}
 
         {/* Part Pools */}
         <SectionHeader title="파트별 멤버 관리" actionLabel="멤버 관리" />
@@ -468,7 +514,13 @@ function GenerateView({
                           <Text style={[styles.candidateAvail, { color: Brand.accent }]}>전체 가능</Text>
                         )}
                       </View>
-                      <Pressable style={[styles.editUnavailBtn, { borderColor: colors.border }]}>
+                      <Pressable
+                        onPress={() => {
+                          setEditingMember({ role: pool.role, memberId: c.memberId, name: c.name });
+                          setTempUnavail(new Set(c.unavailableDates));
+                        }}
+                        style={[styles.editUnavailBtn, { borderColor: colors.border }]}
+                      >
                         <FontAwesome name="calendar-times-o" size={13} color={colors.textSecondary} />
                       </Pressable>
                       <Pressable style={[styles.removeBtn, { backgroundColor: `${Brand.pink}15` }]}>
@@ -490,16 +542,16 @@ function GenerateView({
         <Pressable
           style={[styles.generateBtn, generated && styles.generateBtnDone]}
           onPress={() => {
-            const result = autoGenerate(selectedDays, servicesPerDay, 2026, 3);
+            const result = autoGenerate(selectedDates, servicesPerDate, 2026, 3);
             onGenerate(result);
-            setGenerated(true);
+            onStateChange({ ...state, generated: true });
           }}
         >
           <FontAwesome name={generated ? 'check' : 'magic'} size={18} color="#fff" />
           <Text style={styles.generateBtnText}>
             {generated
-              ? `${generateDates.length}개 일정이 생성되었습니다!`
-              : `4월 스케줄 자동 생성 (${generateDates.length}개 일정)`}
+              ? `${selectedCount}개 일정이 생성되었습니다!`
+              : `4월 스케줄 자동 생성 (${selectedCount}개 일정)`}
           </Text>
         </Pressable>
 
@@ -509,6 +561,98 @@ function GenerateView({
           </Text>
         )}
       </View>
+
+      {/* 불가일 캘린더 모달 */}
+      {editingMember && (
+        <View style={[styles.unavailModal, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <View style={[styles.unavailContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.unavailHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.unavailTitle, { color: colors.text }]}>
+                  {editingMember.name} 불가 날짜
+                </Text>
+                <Text style={[styles.unavailSubtitle, { color: colors.textSecondary }]}>
+                  불가한 날짜를 탭하세요 ({tempUnavail.size}일 선택)
+                </Text>
+              </View>
+              <Pressable onPress={() => setEditingMember(null)} style={{ padding: 4 }}>
+                <FontAwesome name="times" size={18} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            {/* Mini Calendar */}
+            <View style={styles.unavailCalHeader}>
+              {days.map((day, i) => (
+                <View key={i} style={styles.calendarHeaderCell}>
+                  <Text style={[styles.calendarHeaderText, { color: i === 0 ? Brand.pink : colors.textSecondary }]}>
+                    {i === 0 ? '주일' : day}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {weeks.map((week, wi) => (
+              <View key={wi} style={styles.calendarWeekRow}>
+                {week.map((day, di) => {
+                  if (day === null) return <View key={di} style={styles.calendarCell} />;
+                  const dateStr = makeDateStr(day);
+                  const isUnavail = tempUnavail.has(dateStr);
+                  return (
+                    <Pressable
+                      key={di}
+                      onPress={() => {
+                        const next = new Set(tempUnavail);
+                        if (next.has(dateStr)) next.delete(dateStr); else next.add(dateStr);
+                        setTempUnavail(next);
+                      }}
+                      style={[
+                        styles.calendarCell,
+                        isUnavail && { backgroundColor: Brand.pink, borderRadius: 10 },
+                      ]}
+                    >
+                      <Text style={[
+                        styles.calendarDayText,
+                        { color: isUnavail ? '#fff' : di === 0 ? Brand.pink : colors.text },
+                        { fontSize: 14 },
+                      ]}>
+                        {day}
+                      </Text>
+                      {isUnavail && (
+                        <Text style={{ fontSize: 9, color: 'rgba(255,255,255,0.8)', fontWeight: '700' }}>불가</Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
+
+            {/* Confirm / Cancel */}
+            <View style={styles.unavailActions}>
+              <Pressable
+                onPress={() => setEditingMember(null)}
+                style={[styles.unavailCancelBtn, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.unavailCancelText, { color: colors.textSecondary }]}>취소</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  // partPools에서 해당 멤버의 unavailableDates 업데이트
+                  const pool = partPools.find((p) => p.role === editingMember.role);
+                  const candidate = pool?.candidates.find((c) => c.memberId === editingMember.memberId);
+                  if (candidate) {
+                    candidate.unavailableDates = Array.from(tempUnavail);
+                  }
+                  setEditingMember(null);
+                  onStateChange({ ...state, generated: false });
+                }}
+                style={styles.unavailConfirmBtn}
+              >
+                <FontAwesome name="check" size={14} color="#fff" />
+                <Text style={styles.unavailConfirmText}>확인 ({tempUnavail.size}일)</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -749,10 +893,21 @@ export default function ScheduleScreen() {
   const colors = Colors[colorScheme];
   const [view, setView] = useState<ViewMode>('week');
   const { scheduleData, setScheduleData } = useSchedule();
-  const [genState, setGenState] = useState<GenerateState>({
-    selectedDays: [0, 3, 5],
-    servicesPerDay: { 0: 2, 3: 1, 5: 1 },
-    generated: false,
+  const [genState, setGenState] = useState<GenerateState>(() => {
+    // 기본값: 수(3), 금(5), 일(0) 요일의 모든 날짜 선택
+    const dates = new Set<string>();
+    const svc: Record<string, number> = {};
+    const d = new Date(2026, 3, 1);
+    while (d.getMonth() === 3) {
+      const day = d.getDay();
+      if (day === 0 || day === 3 || day === 5) {
+        const ds = toLocalDateStr(d);
+        dates.add(ds);
+        svc[ds] = day === 0 ? 2 : 1; // 주일 2부, 수/금 1부
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return { selectedDates: dates, servicesPerDate: svc, generated: false };
   });
 
   const handleGenerate = useCallback((data: MonthlyScheduleRow[]) => {
@@ -843,6 +998,7 @@ const styles = StyleSheet.create({
   upcomingDayText: { fontSize: 11, fontWeight: '600' },
   upcomingInfo: { flex: 1 },
   upcomingTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  upcomingNote: { fontSize: 12, fontWeight: '600', marginBottom: 2 },
   upcomingMeta: { fontSize: 12 },
 
   // Generate View
@@ -860,32 +1016,59 @@ const styles = StyleSheet.create({
   monthNav: { padding: 8 },
   monthText: { fontSize: 18, fontWeight: '800' },
 
-  // Day Selector
-  daySelector: { flexDirection: 'row', gap: 8, marginBottom: 4 },
-  daySelectorItem: {
-    flex: 1, alignItems: 'center', paddingVertical: 12,
-    borderRadius: 12,
+  // Weekday Quick Select
+  weekdayQuickRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  weekdayQuickBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
   },
-  daySelectorText: { fontSize: 15, fontWeight: '700' },
-  serviceCountSection: { marginTop: 16 },
-  serviceCountLabel: { fontSize: 12, fontWeight: '500', marginBottom: 8 },
-  serviceCountRow: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-  serviceCountChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 10,
-    borderRadius: 10, borderWidth: 1,
+  weekdayQuickText: { fontSize: 13, fontWeight: '700' },
+
+  // Calendar
+  calendarHeaderRow: { flexDirection: 'row', marginBottom: 8 },
+  calendarHeaderCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
+  calendarHeaderText: { fontSize: 12, fontWeight: '600' },
+  calendarWeekRow: { flexDirection: 'row' },
+  calendarCell: {
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 6, minHeight: 64,
   },
-  serviceCountDay: { fontSize: 14, fontWeight: '800' },
-  serviceCountNum: { fontSize: 14, fontWeight: '600' },
-  previewDates: { marginTop: 16, paddingTop: 16, borderTopWidth: 1 },
-  previewLabel: { fontSize: 12, fontWeight: '500', marginBottom: 10 },
-  previewDateChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  previewDateChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
+  calendarDayText: { fontSize: 16, fontWeight: '700' },
+  calendarSvcText: { fontSize: 12, fontWeight: '800', color: 'rgba(255,255,255,0.9)', marginTop: 3, paddingHorizontal: 6, paddingVertical: 2 },
+  calendarHint: { fontSize: 11, textAlign: 'center', marginTop: 12 },
+
+  // Selected Summary
+  selectedSummary: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 14, borderRadius: 12, borderWidth: 1, marginBottom: 4,
   },
-  previewDateText: { fontSize: 12, fontWeight: '600' },
-  previewServiceText: { fontSize: 11 },
+  selectedSummaryText: { fontSize: 14, fontWeight: '600' },
+
+  // Unavail Modal
+  unavailModal: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    justifyContent: 'center', alignItems: 'center', padding: 20, zIndex: 100,
+  },
+  unavailContent: {
+    borderRadius: 20, padding: 24, width: '100%', maxWidth: 400,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3, shadowRadius: 16, elevation: 10,
+  },
+  unavailHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
+  unavailTitle: { fontSize: 18, fontWeight: '800', marginBottom: 4 },
+  unavailSubtitle: { fontSize: 13 },
+  unavailCalHeader: { flexDirection: 'row', marginBottom: 4 },
+  unavailActions: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  unavailCancelBtn: {
+    flex: 1, paddingVertical: 14, borderRadius: 12, borderWidth: 1,
+    alignItems: 'center',
+  },
+  unavailCancelText: { fontSize: 15, fontWeight: '600' },
+  unavailConfirmBtn: {
+    flex: 2, flexDirection: 'row', gap: 8, paddingVertical: 14,
+    borderRadius: 12, backgroundColor: Brand.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  unavailConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   // Pool
   poolHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
