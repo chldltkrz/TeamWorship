@@ -719,19 +719,23 @@ function FullScheduleView({
     }).join(' ');
   };
 
-  const handleSelectMember = (memberName: string) => {
+  const handleToggleMember = (memberName: string) => {
     if (!editingCell) return;
     const { date, si, role } = editingCell;
     const updated = scheduleData.map((row) => {
       if (row.date !== date) return row;
       const newServices = row.services.map((svc, idx) => {
         if (idx !== si) return svc;
-        const slotExists = svc.slots.find((s) => s.role === role);
-        if (slotExists) {
+        const slot = svc.slots.find((s) => s.role === role);
+        if (slot) {
+          const has = slot.members.includes(memberName);
+          const newMembers = has
+            ? slot.members.filter((m) => m !== memberName)
+            : [...slot.members, memberName];
           return {
             ...svc,
             slots: svc.slots.map((s) =>
-              s.role === role ? { ...s, members: memberName ? [memberName] : [] } : s
+              s.role === role ? { ...s, members: newMembers } : s
             ),
           };
         }
@@ -744,13 +748,35 @@ function FullScheduleView({
       return { ...row, services: newServices };
     });
     onUpdate(updated);
+  };
+
+  const handleClearSlot = () => {
+    if (!editingCell) return;
+    const { date, si, role } = editingCell;
+    const updated = scheduleData.map((row) => {
+      if (row.date !== date) return row;
+      const newServices = row.services.map((svc, idx) => {
+        if (idx !== si) return svc;
+        return {
+          ...svc,
+          slots: svc.slots.map((s) =>
+            s.role === role ? { ...s, members: [] } : s
+          ),
+        };
+      });
+      return { ...row, services: newServices };
+    });
+    onUpdate(updated);
     setEditingCell(null);
   };
 
   const editingPool = editingCell ? partPools.find((p) => p.role === editingCell.role) : null;
   const editingRow = editingCell ? scheduleData.find((r) => r.date === editingCell.date) : null;
-  const editingCurrent = editingCell && editingRow
-    ? getMembers(editingRow, editingCell.si, editingCell.role) : '';
+  const editingSlot = editingCell && editingRow
+    ? editingRow.services[editingCell.si]?.slots.find((s) => s.role === editingCell.role)
+    : null;
+  const editingMembers = editingSlot?.members || [];
+  const editingCurrent = editingMembers.length > 0 ? editingMembers.join(', ') : '';
 
   const dayBgColors: Record<string, string> = {
     '수': 'rgba(67,184,156,0.08)',
@@ -868,22 +894,30 @@ function FullScheduleView({
                 <FontAwesome name="times" size={16} color={colors.textSecondary} />
               </Pressable>
             </View>
+            <Text style={[styles.pickerHint, { color: colors.textSecondary }]}>
+              여러 명 선택 가능 ({editingMembers.length}명 선택됨)
+            </Text>
             <View style={styles.pickerList}>
               {editingPool.candidates.map((c) => {
                 const isUnavailable = c.unavailableDates.includes(editingCell.date);
-                const isCurrent = editingCurrent.includes(c.name);
+                const isSelected = editingMembers.includes(c.name);
                 return (
                   <Pressable
                     key={c.memberId}
-                    onPress={isUnavailable ? undefined : () => handleSelectMember(c.name)}
+                    onPress={isUnavailable ? undefined : () => handleToggleMember(c.name)}
                     disabled={isUnavailable}
                     style={[
                       styles.pickerItem,
                       { borderColor: colors.border },
-                      isCurrent && { backgroundColor: `${Brand.primary}15`, borderColor: Brand.primary },
+                      isSelected && { backgroundColor: `${Brand.primary}15`, borderColor: Brand.primary },
                       isUnavailable && { opacity: 0.4, backgroundColor: `${Brand.pink}08` },
                     ]}
                   >
+                    <FontAwesome
+                      name={isSelected ? 'check-square' : 'square-o'}
+                      size={16}
+                      color={isUnavailable ? '#999' : isSelected ? Brand.primary : colors.textSecondary}
+                    />
                     <View style={[styles.dropdownDot, { backgroundColor: isUnavailable ? '#999' : c.color }]} />
                     <Text style={[styles.pickerName, { color: isUnavailable ? colors.textSecondary : colors.text }]}>
                       {c.name}
@@ -891,20 +925,23 @@ function FullScheduleView({
                     {isUnavailable && (
                       <Text style={[styles.dropdownUnavail, { color: Brand.pink }]}>불가</Text>
                     )}
-                    {isCurrent && !isUnavailable && (
-                      <FontAwesome name="check" size={12} color={Brand.primary} />
-                    )}
                   </Pressable>
                 );
               })}
               <Pressable
-                onPress={() => handleSelectMember('')}
+                onPress={handleClearSlot}
                 style={[styles.pickerItem, { borderColor: colors.border }]}
               >
                 <FontAwesome name="times-circle" size={14} color={colors.textSecondary} />
-                <Text style={[styles.pickerName, { color: colors.textSecondary }]}>비우기</Text>
+                <Text style={[styles.pickerName, { color: colors.textSecondary }]}>전체 비우기</Text>
               </Pressable>
             </View>
+            <Pressable
+              onPress={() => setEditingCell(null)}
+              style={[styles.pickerDoneBtn, { backgroundColor: Brand.primary }]}
+            >
+              <Text style={styles.pickerDoneBtnText}>완료</Text>
+            </Pressable>
           </View>
         )}
 
@@ -1184,6 +1221,7 @@ const styles = StyleSheet.create({
   pickerDate: { fontSize: 13, fontWeight: '600' },
   pickerCurrent: { fontSize: 13, fontWeight: '500', flex: 1 },
   pickerClose: { padding: 4 },
+  pickerHint: { fontSize: 12, fontWeight: '500', marginBottom: 10 },
   pickerList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pickerItem: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -1191,6 +1229,11 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1,
   },
   pickerName: { fontSize: 14, fontWeight: '600' },
+  pickerDoneBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 12, borderRadius: 10, marginTop: 12,
+  },
+  pickerDoneBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 16, paddingBottom: 20 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 12, height: 12, borderRadius: 3 },
