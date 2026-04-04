@@ -27,6 +27,10 @@ interface ScheduleContextType {
   meetingTimes: Record<string, number>;
   setMeetingTime: (roomId: string, minutes: number) => void;
   getMeetingTime: (roomId: string) => number | undefined;
+  // 종료된 방
+  closedRooms: Set<string>;
+  closeRoom: (roomId: string) => void;
+  isRoomClosed: (roomId: string) => boolean;
 }
 
 const ScheduleContext = createContext<ScheduleContextType>({
@@ -42,12 +46,16 @@ const ScheduleContext = createContext<ScheduleContextType>({
   meetingTimes: {},
   setMeetingTime: () => {},
   getMeetingTime: () => undefined,
+  closedRooms: new Set(),
+  closeRoom: () => {},
+  isRoomClosed: () => false,
 });
 
 export function ScheduleProvider({ children }: { children: ReactNode }) {
   const [scheduleData, setScheduleData] = useState<MonthlyScheduleRow[]>(defaultSchedule);
   const [attendanceMap, setAttendanceMap] = useState<Record<string, AttendanceEntry>>({});
   const [meetingTimes, setMeetingTimesState] = useState<Record<string, number>>({});
+  const [closedRooms, setClosedRooms] = useState<Set<string>>(new Set());
   const meetingTimesRef = useRef(meetingTimes);
   meetingTimesRef.current = meetingTimes;
 
@@ -91,11 +99,20 @@ export function ScheduleProvider({ children }: { children: ReactNode }) {
     return meetingTimes[roomId];
   };
 
+  const closeRoom = useCallback((roomId: string) => {
+    setClosedRooms((prev) => new Set(prev).add(roomId));
+  }, []);
+
+  const isRoomClosed = (roomId: string) => {
+    return closedRooms.has(roomId);
+  };
+
   return (
     <ScheduleContext.Provider value={{
       scheduleData, setScheduleData, updateScheduleData,
       attendanceMap, checkIn, cancelCheckIn, isCheckedIn, getAttendanceByDate, getAttendanceEntry,
       meetingTimes, setMeetingTime, getMeetingTime,
+      closedRooms, closeRoom, isRoomClosed,
     }}>
       {children}
     </ScheduleContext.Provider>

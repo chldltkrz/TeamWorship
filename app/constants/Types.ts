@@ -69,6 +69,7 @@ export interface SheetMusic {
 export interface MusicRoom {
   id: string;
   name: string;
+  date: string;         // 예배 날짜 (YYYY-MM-DD)
   songTitle: string;
   songArtist: string;
   key: string;
@@ -76,8 +77,8 @@ export interface MusicRoom {
   pageCount: number;
   currentPage: number;
   hasAnnotations: boolean;
-  songForm: string[];   // Intro, V1, Chorus, Bridge 등
-  isLive: boolean;      // 실시간 세션 활성 여부
+  songForm: string[];
+  isClosed: boolean;    // 종료된 방
   createdBy: string;
   lastActivity: string;
 }

@@ -34,7 +34,7 @@ function getThisWeekRange(): [string, string] {
 }
 
 // 채팅방 동적 생성
-function generateChatRooms(scheduleData: MonthlyScheduleRow[]): (ChatRoom & { type: RoomType; members: string[] })[] {
+function generateChatRooms(scheduleData: MonthlyScheduleRow[], closedRooms: Set<string>): (ChatRoom & { type: RoomType; members: string[] })[] {
   const rooms: (ChatRoom & { type: RoomType; members: string[] })[] = [];
   const [weekStart, weekEnd] = getThisWeekRange();
 
@@ -68,8 +68,10 @@ function generateChatRooms(scheduleData: MonthlyScheduleRow[]): (ChatRoom & { ty
       const allMembers = svc.slots.flatMap((s) => s.members);
       const isMeIncluded = allMembers.some((m) => m.includes(currentUser.name));
 
-      // 내가 포함된 예배방만 생성
+      // 내가 포함된 예배방만 + 종료되지 않은 방만 생성
+      const worshipRoomId = `worship-${row.date}-${si}`;
       if (!isMeIncluded) return;
+      if (closedRooms.has(`room-svc-${row.date}-${si}`)) return;
 
       const serviceLabel = svc.serviceLabel ? ` ${svc.serviceLabel}` : '';
       const dayChar = row.dayLabel.match(/\((.)\)/)?.[1] || '';
@@ -130,10 +132,10 @@ export default function ChatScreen() {
   const colors = Colors[colorScheme];
   const [filter, setFilter] = useState<FilterType>('all');
   const [search, setSearch] = useState('');
-  const { scheduleData } = useSchedule();
+  const { scheduleData, closedRooms } = useSchedule();
   const router = useRouter();
 
-  const allRooms = useMemo(() => generateChatRooms(scheduleData), [scheduleData]);
+  const allRooms = useMemo(() => generateChatRooms(scheduleData, closedRooms), [scheduleData, closedRooms]);
 
   const filteredRooms = allRooms
     .filter((room) => filter === 'all' || room.type === filter)

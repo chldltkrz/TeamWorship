@@ -15,6 +15,16 @@ import { useSchedule } from '@/constants/ScheduleContext';
 import * as DocumentPicker from 'expo-document-picker';
 import { Brand as BrandColors } from '@/constants/Colors';
 
+function toLocalDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+const currentUser = { name: '김강래', role: '예배인도' };
+const isLeader = currentUser.role === '예배인도';
+
 type TabType = 'rooms' | 'library';
 const allKeys = ['전체', 'C', 'D', 'E', 'F', 'G', 'A', 'B'];
 
@@ -37,7 +47,9 @@ export default function MusicScreen() {
 
   // 협업방 상태
   const [rooms, setRooms] = useState<MusicRoom[]>(defaultMusicRooms);
-  const { scheduleData } = useSchedule();
+
+  const [showAllPast, setShowAllPast] = useState(false);
+  const [showAllUnlinked, setShowAllUnlinked] = useState(false);
 
   // 업로드 폼 상태
   const [uploadTitle, setUploadTitle] = useState('');
@@ -62,8 +74,15 @@ export default function MusicScreen() {
     });
   };
 
-  const liveRooms = rooms.filter((r) => r.isLive);
-  const recentRooms = rooms.filter((r) => !r.isLive);
+  const { scheduleData, closeRoom: contextCloseRoom, isRoomClosed } = useSchedule();
+  const todayStr = toLocalDateStr(new Date());
+  const activeRooms = rooms.filter((r) => !r.isClosed && !isRoomClosed(r.id) && r.date >= todayStr);
+  const pastRooms = rooms.filter((r) => r.isClosed || isRoomClosed(r.id) || r.date < todayStr);
+
+  const handleCloseRoom = (roomId: string) => {
+    setRooms((prev) => prev.map((r) => r.id === roomId ? { ...r, isClosed: true } : r));
+    contextCloseRoom(roomId); // Context에도 반영 → 채팅에서 참조
+  };
 
   const filteredLibrary = library
     .filter((s) => selectedKey === '전체' || s.key === selectedKey)
@@ -145,6 +164,7 @@ export default function MusicScreen() {
     const newRoom: MusicRoom = {
       id: service.roomId,
       name: service.label,
+      date: service.date,
       songTitle: selected.map((s) => s.title).join(', '),
       songArtist: firstSong?.artist || '',
       key: firstSong?.key || 'C',
@@ -153,8 +173,8 @@ export default function MusicScreen() {
       currentPage: 1,
       hasAnnotations: false,
       songForm: selected.map((s) => s.title),
-      isLive: false,
-      createdBy: '김강래',
+      isClosed: false,
+      createdBy: currentUser.name,
       lastActivity: '방금 전',
     };
 
@@ -177,7 +197,7 @@ export default function MusicScreen() {
           <Text style={[styles.tabText, { color: tab === 'rooms' ? Brand.primary : colors.textSecondary }]}>
             협업방
           </Text>
-          {liveRooms.length > 0 && <View style={styles.liveDot} />}
+          {activeRooms.length > 0 && <View style={styles.liveDot} />}
         </Pressable>
         <Pressable
           onPress={() => setTab('library')}
@@ -207,21 +227,19 @@ export default function MusicScreen() {
               </View>
             </Pressable>
 
-            {liveRooms.length > 0 && (
+            {/* 활성 방 */}
+            {activeRooms.length > 0 && (
               <>
-                <SectionHeader title="실시간 세션" />
-                {liveRooms.map((room) => (
+                <SectionHeader title={`활성 방 (${activeRooms.length})`} />
+                {activeRooms.map((room) => (
                   <Card key={room.id}>
                     <View style={styles.roomHeader}>
-                      <View style={styles.roomLiveBadge}>
-                        <View style={styles.liveIndicator} />
-                        <Text style={styles.liveText}>LIVE</Text>
-                      </View>
+                      <Badge label={room.date === todayStr ? '오늘' : room.name.split(' ')[0]} variant="success" />
                       <Text style={[styles.roomActivity, { color: colors.textSecondary }]}>{room.lastActivity}</Text>
                     </View>
                     <Text style={[styles.roomName, { color: colors.text }]}>{room.name}</Text>
                     <Text style={[styles.roomSong, { color: colors.textSecondary }]}>
-                      {room.songTitle} — {room.songArtist}
+                      {room.songTitle}
                     </Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.songFormScroll}>
                       {room.songForm.map((section, i) => (
@@ -236,53 +254,80 @@ export default function MusicScreen() {
                       ))}
                     </ScrollView>
                     <View style={styles.roomMeta}>
-                      <View style={styles.roomUsers}>
-                        {room.activeUsers.map((u, i) => (
-                          <View key={`${room.id}-u-${i}`} style={{ marginLeft: i > 0 ? -6 : 0 }}>
-                            <Avatar name={u.name} color={u.color} size={28} />
-                          </View>
-                        ))}
-                        <Text style={[styles.userCount, { color: colors.textSecondary }]}>{room.activeUsers.length}명 접속중</Text>
-                      </View>
                       <View style={styles.roomInfo}>
                         <Badge label={`Key ${room.key}`} />
-                        <Text style={[styles.pageInfo, { color: colors.textSecondary }]}>{room.currentPage}/{room.pageCount}p</Text>
+                        <Text style={[styles.pageInfo, { color: colors.textSecondary }]}>{room.songForm.length}곡</Text>
                       </View>
                     </View>
-                    <Pressable style={styles.joinBtn} onPress={() => navigateToRoom(room)}>
-                      <FontAwesome name="sign-in" size={14} color="#fff" />
-                      <Text style={styles.joinBtnText}>세션 참여하기</Text>
-                    </Pressable>
+                    <View style={styles.roomActions}>
+                      <Pressable style={styles.joinBtn} onPress={() => navigateToRoom(room)}>
+                        <FontAwesome name="sign-in" size={14} color="#fff" />
+                        <Text style={styles.joinBtnText}>참여하기</Text>
+                      </Pressable>
+                      {isLeader && (
+                        <Pressable
+                          style={[styles.closeRoomBtn, { borderColor: Brand.pink }]}
+                          onPress={() => handleCloseRoom(room.id)}
+                        >
+                          <FontAwesome name="stop-circle" size={14} color={Brand.pink} />
+                          <Text style={[styles.closeRoomText, { color: Brand.pink }]}>종료</Text>
+                        </Pressable>
+                      )}
+                    </View>
                   </Card>
                 ))}
               </>
             )}
 
-            <SectionHeader title="최근 악보방" actionLabel="+ 새 방 만들기" />
-            {recentRooms.map((room) => (
-              <Pressable key={room.id} onPress={() => navigateToRoom(room)}>
-                <Card>
-                  <View style={styles.recentRow}>
-                    <View style={[styles.recentIcon, { backgroundColor: `${Brand.primary}12` }]}>
-                      <FontAwesome name="file-pdf-o" size={20} color={Brand.primary} />
-                    </View>
-                    <View style={styles.recentInfo}>
-                      <Text style={[styles.roomName, { color: colors.text, fontSize: 15 }]}>{room.name}</Text>
-                      <Text style={[styles.roomSong, { color: colors.textSecondary }]}>
-                        {room.songTitle} · Key {room.key}
-                      </Text>
-                    </View>
-                    <FontAwesome name="angle-right" size={20} color={colors.textSecondary} />
-                  </View>
-                </Card>
-              </Pressable>
-            ))}
+            {activeRooms.length === 0 && (
+              <View style={[styles.emptyBanner, { backgroundColor: `${Brand.primary}08`, borderColor: `${Brand.primary}20` }]}>
+                <FontAwesome name="inbox" size={24} color={colors.textSecondary} />
+                <Text style={[styles.emptyBannerText, { color: colors.textSecondary }]}>
+                  활성된 악보방이 없습니다. 아래에서 방을 만들어보세요.
+                </Text>
+              </View>
+            )}
+
+            {/* 지난 방 */}
+            {pastRooms.length > 0 && (
+              <>
+                <SectionHeader title={`지난 방 (${pastRooms.length})`} />
+                {pastRooms.slice(0, showAllPast ? undefined : 3).map((room) => (
+                  <Pressable key={room.id} onPress={() => navigateToRoom(room)} style={{ opacity: 0.6 }}>
+                    <Card>
+                      <View style={styles.recentRow}>
+                        <View style={[styles.recentIcon, { backgroundColor: `${colors.textSecondary}15` }]}>
+                          <FontAwesome name="file-pdf-o" size={20} color={colors.textSecondary} />
+                        </View>
+                        <View style={styles.recentInfo}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text style={[styles.roomName, { color: colors.text, fontSize: 15 }]}>{room.name}</Text>
+                            <Badge label="종료" variant="danger" />
+                          </View>
+                          <Text style={[styles.roomSong, { color: colors.textSecondary }]}>
+                            {room.songTitle} · Key {room.key}
+                          </Text>
+                        </View>
+                      </View>
+                    </Card>
+                  </Pressable>
+                ))}
+                {pastRooms.length > 3 && !showAllPast && (
+                  <Pressable onPress={() => setShowAllPast(true)} style={styles.showMoreBtn}>
+                    <Text style={[styles.showMoreText, { color: Brand.primary }]}>
+                      더보기 ({pastRooms.length - 3}개 더)
+                    </Text>
+                    <FontAwesome name="chevron-down" size={12} color={Brand.primary} />
+                  </Pressable>
+                )}
+              </>
+            )}
 
             {/* 아직 방이 없는 예배 */}
             {availableServices.length > 0 && (
               <>
-                <SectionHeader title="악보방 미생성 예배" />
-                {availableServices.slice(0, 5).map((svc) => (
+                <SectionHeader title={`악보방 미생성 예배 (${availableServices.length})`} />
+                {availableServices.slice(0, showAllUnlinked ? undefined : 3).map((svc) => (
                   <Card key={svc.roomId}>
                     <View style={styles.recentRow}>
                       <View style={[styles.recentIcon, { backgroundColor: `${Brand.orange}15` }]}>
@@ -294,15 +339,25 @@ export default function MusicScreen() {
                           {svc.members.slice(0, 3).join(', ')}{svc.members.length > 3 ? ` 외 ${svc.members.length - 3}명` : ''}
                         </Text>
                       </View>
-                      <Pressable
-                        onPress={() => { setPendingService(svc); setTab('library'); }}
-                        style={[styles.addRoomBtn, { borderColor: Brand.primary }]}
-                      >
-                        <Text style={[styles.addRoomBtnText, { color: Brand.primary }]}>곡 선택</Text>
-                      </Pressable>
+                      {isLeader && (
+                        <Pressable
+                          onPress={() => { setPendingService(svc); setTab('library'); }}
+                          style={[styles.addRoomBtn, { borderColor: Brand.primary }]}
+                        >
+                          <Text style={[styles.addRoomBtnText, { color: Brand.primary }]}>곡 선택</Text>
+                        </Pressable>
+                      )}
                     </View>
                   </Card>
                 ))}
+                {availableServices.length > 3 && !showAllUnlinked && (
+                  <Pressable onPress={() => setShowAllUnlinked(true)} style={styles.showMoreBtn}>
+                    <Text style={[styles.showMoreText, { color: Brand.primary }]}>
+                      더보기 ({availableServices.length - 3}개 더)
+                    </Text>
+                    <FontAwesome name="chevron-down" size={12} color={Brand.primary} />
+                  </Pressable>
+                )}
               </>
             )}
 
@@ -359,12 +414,14 @@ export default function MusicScreen() {
                     <Text style={styles.selectionSub}>→ {pendingService.label}</Text>
                   )}
                 </View>
-                <Pressable onPress={handleCreateRoom} style={styles.createRoomBtn}>
-                  <FontAwesome name="users" size={13} color={Brand.primary} />
-                  <Text style={styles.createRoomBtnText}>
-                    {pendingService ? '바로 생성' : '방 만들기'}
-                  </Text>
-                </Pressable>
+                {isLeader && (
+                  <Pressable onPress={handleCreateRoom} style={styles.createRoomBtn}>
+                    <FontAwesome name="users" size={13} color={Brand.primary} />
+                    <Text style={styles.createRoomBtnText}>
+                      {pendingService ? '바로 생성' : '방 만들기'}
+                    </Text>
+                  </Pressable>
+                )}
                 <Pressable onPress={() => { setSelectedIds(new Set()); setPendingService(null); }} style={styles.clearSelBtn}>
                   <FontAwesome name="times" size={14} color="rgba(255,255,255,0.7)" />
                 </Pressable>
@@ -429,8 +486,8 @@ export default function MusicScreen() {
         )}
       </ScrollView>
 
-      {/* Upload FAB (library tab only) */}
-      {tab === 'library' && (
+      {/* Upload FAB (library tab, leader only) */}
+      {tab === 'library' && isLeader && (
         <Pressable style={styles.fab} onPress={() => setShowUpload(true)}>
           <FontAwesome name="cloud-upload" size={22} color="#fff" />
         </Pressable>
@@ -618,7 +675,7 @@ const styles = StyleSheet.create({
   tabItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 14 },
   tabItemActive: { borderBottomWidth: 2, borderBottomColor: Brand.primary },
   tabText: { fontSize: 14, fontWeight: '700' },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#FF3B30' },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Brand.accent },
   content: { padding: 16 },
 
   // Collab Banner
@@ -645,8 +702,25 @@ const styles = StyleSheet.create({
   userCount: { fontSize: 12, marginLeft: 10, fontWeight: '500' },
   roomInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   pageInfo: { fontSize: 12, fontWeight: '600' },
-  joinBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Brand.primary, paddingVertical: 12, borderRadius: 12 },
+  roomActions: { flexDirection: 'row', gap: 10 },
+  joinBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Brand.primary, paddingVertical: 12, borderRadius: 12 },
   joinBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  closeRoomBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingHorizontal: 20, paddingVertical: 12,
+    borderRadius: 12, borderWidth: 1,
+  },
+  closeRoomText: { fontSize: 14, fontWeight: '700' },
+  emptyBanner: {
+    alignItems: 'center', gap: 10, padding: 24,
+    borderRadius: 14, borderWidth: 1, marginBottom: 16,
+  },
+  emptyBannerText: { fontSize: 13, textAlign: 'center' },
+  showMoreBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 14,
+  },
+  showMoreText: { fontSize: 14, fontWeight: '600' },
   recentRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   recentIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   recentInfo: { flex: 1 },
