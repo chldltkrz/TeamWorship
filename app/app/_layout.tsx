@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 import { Brand } from '@/constants/Colors';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { ScheduleProvider } from '@/constants/ScheduleContext';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -68,6 +69,7 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
+    <ScheduleProvider>
     <ThemeProvider value={colorScheme === 'dark' ? TeamWorshipDark : TeamWorshipLight}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -75,5 +77,6 @@ function RootLayoutNav() {
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: '설정' }} />
       </Stack>
     </ThemeProvider>
+    </ScheduleProvider>
   );
 }

@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 import Colors, { Brand } from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { ScheduleProvider, useSchedule } from '@/constants/ScheduleContext';
+import { useSchedule } from '@/constants/ScheduleContext';
 import { partPools, monthlySchedule } from '@/constants/MockData';
 
 const currentUser = '김강래';
@@ -53,14 +53,6 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
-  return (
-    <ScheduleProvider>
-      <TabLayoutInner />
-    </ScheduleProvider>
-  );
-}
-
-function TabLayoutInner() {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const unreadCount = useChatUnreadCount();

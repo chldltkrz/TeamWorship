@@ -9,8 +9,23 @@ import * as ImagePicker from 'expo-image-picker';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors, { Brand } from '@/constants/Colors';
 import { Avatar } from '@/components/ui/Avatar';
+import { useSchedule } from '@/constants/ScheduleContext';
 
 const currentUser = '김강래';
+
+function toLocalDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function getTimeStr(): string {
+  const now = new Date();
+  const h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2, '0');
+  return `${h >= 12 ? '오후' : '오전'} ${h > 12 ? h - 12 : h}:${m}`;
+}
 
 interface ChatMessage {
   id: string;
@@ -78,6 +93,21 @@ export default function ChatRoomScreen() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const roomName = name || '채팅';
+  const roomId = (id as string) || '';
+  const isWorshipRoom = roomId.startsWith('worship-');
+
+  const { checkIn, isCheckedIn, getAttendanceEntry, setMeetingTime, getMeetingTime } = useSchedule();
+  const contextChecked = isCheckedIn(currentUser, roomId);
+  const [localChecked, setLocalChecked] = useState(false);
+  const isChecked = contextChecked || localChecked;
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerHour, setPickerHour] = useState(9);
+  const [pickerMin, setPickerMin] = useState(0);
+
+  const meetingTime = getMeetingTime(roomId);
+  const meetingTimeStr = meetingTime != null
+    ? `${Math.floor(meetingTime / 60) > 12 ? '오후' : '오전'} ${Math.floor(meetingTime / 60) > 12 ? Math.floor(meetingTime / 60) - 12 : Math.floor(meetingTime / 60)}:${String(meetingTime % 60).padStart(2, '0')}`
+    : null;
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => getDemoMessages(roomName));
   const [inputText, setInputText] = useState('');
@@ -87,11 +117,64 @@ export default function ChatRoomScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
   }, []);
 
+  function getNowMinutes(): number {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  }
+
+  const handleCheckIn = () => {
+    if (isChecked) return;
+    setLocalChecked(true);
+    const todayStr = toLocalDateStr(new Date());
+    const timeStr = getTimeStr();
+    const nowMin = getNowMinutes();
+    const isLate = meetingTime != null && nowMin > meetingTime;
+
+    checkIn({
+      memberName: currentUser,
+      checkedAt: timeStr,
+      checkedAtRaw: nowMin,
+      roomId,
+      roomName,
+      date: todayStr,
+    });
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `checkin-${Date.now()}`,
+        sender: '', senderColor: '', time: '',
+        text: isLate
+          ? `⚠️ ${currentUser}님이 지각 출석했습니다. (${timeStr})`
+          : `✅ ${currentUser}님이 출석체크 했습니다. (${timeStr})`,
+        isMe: false, isSystem: true,
+      },
+    ]);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+  };
+
+  const handleSetMeetingTime = () => {
+    const totalMin = pickerHour * 60 + pickerMin;
+    setMeetingTime(roomId, totalMin);
+    setShowTimePicker(false);
+
+    const label = `${pickerHour > 12 ? '오후' : '오전'} ${pickerHour > 12 ? pickerHour - 12 : pickerHour}:${String(pickerMin).padStart(2, '0')}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `meeting-${Date.now()}`,
+        sender: '', senderColor: '', time: '',
+        text: `⏰ 모임시간이 ${label}로 설정되었습니다. 이후 출석은 지각 처리됩니다.`,
+        isMe: false, isSystem: true,
+      },
+    ]);
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+  };
+
   const sendMessage = () => {
     const text = inputText.trim();
     if (!text) return;
-    const now = new Date();
-    const timeStr = `${now.getHours() > 12 ? '오후' : '오전'} ${now.getHours() > 12 ? now.getHours() - 12 : now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const timeStr = getTimeStr();
 
     setMessages((prev) => [
       ...prev,
@@ -115,9 +198,7 @@ export default function ChatRoomScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      const now = new Date();
-      const timeStr = `${now.getHours() > 12 ? '오후' : '오전'} ${now.getHours() > 12 ? now.getHours() - 12 : now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-
+      const timeStr = getTimeStr();
       setMessages((prev) => [
         ...prev,
         {
@@ -163,6 +244,101 @@ export default function ChatRoomScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        {/* Attendance Check Banner */}
+        {isWorshipRoom && (
+          <Pressable
+            onPress={handleCheckIn}
+            disabled={isChecked}
+            style={[
+              styles.checkInBanner,
+              {
+                backgroundColor: isChecked ? `${Brand.accent}15` : `${Brand.primary}12`,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
+            <FontAwesome
+              name={isChecked ? 'check-circle' : 'hand-pointer-o'}
+              size={20}
+              color={isChecked ? Brand.accent : Brand.primary}
+            />
+            <View style={styles.checkInTextWrap}>
+              <Text style={[styles.checkInTitle, { color: isChecked ? Brand.accent : colors.text }]}>
+                {isChecked ? '출석 완료!' : '출석체크'}
+              </Text>
+              <Text style={[styles.checkInDesc, { color: colors.textSecondary }]}>
+                {isChecked
+                  ? `${currentUser}님이 출석 체크했습니다`
+                  : '탭하여 오늘 예배 출석을 체크하세요'}
+              </Text>
+            </View>
+            {!isChecked && (
+              <View style={[styles.checkInBtn, { backgroundColor: Brand.primary }]}>
+                <Text style={styles.checkInBtnText}>출석</Text>
+              </View>
+            )}
+          </Pressable>
+        )}
+
+        {/* Meeting Time Bar */}
+        {isWorshipRoom && (
+          <View style={[styles.meetingBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <FontAwesome name="clock-o" size={16} color={meetingTimeStr ? Brand.accent : colors.textSecondary} />
+            {meetingTimeStr ? (
+              <Text style={[styles.meetingTimeText, { color: colors.text }]}>
+                모임시간 <Text style={{ color: Brand.accent, fontWeight: '800' }}>{meetingTimeStr}</Text>
+                {' '}· 이후 출석은 지각
+              </Text>
+            ) : (
+              <Text style={[styles.meetingTimeText, { color: colors.textSecondary }]}>
+                모임시간 미설정
+              </Text>
+            )}
+            <Pressable
+              onPress={() => setShowTimePicker(!showTimePicker)}
+              style={[styles.meetingSetBtn, { borderColor: colors.border }]}
+            >
+              <Text style={[styles.meetingSetBtnText, { color: Brand.primary }]}>
+                {meetingTimeStr ? '변경' : '설정'}
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Time Picker */}
+        {showTimePicker && (
+          <View style={[styles.timePickerWrap, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+            <View style={styles.timePickerRow}>
+              <View style={styles.timePickerCol}>
+                <Pressable onPress={() => setPickerHour((h) => Math.min(23, h + 1))} style={styles.timeArrow}>
+                  <FontAwesome name="chevron-up" size={14} color={colors.textSecondary} />
+                </Pressable>
+                <Text style={[styles.timePickerNum, { color: colors.text }]}>
+                  {String(pickerHour).padStart(2, '0')}
+                </Text>
+                <Pressable onPress={() => setPickerHour((h) => Math.max(0, h - 1))} style={styles.timeArrow}>
+                  <FontAwesome name="chevron-down" size={14} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Text style={[styles.timePickerColon, { color: colors.text }]}>:</Text>
+              <View style={styles.timePickerCol}>
+                <Pressable onPress={() => setPickerMin((m) => m >= 50 ? 0 : m + 10)} style={styles.timeArrow}>
+                  <FontAwesome name="chevron-up" size={14} color={colors.textSecondary} />
+                </Pressable>
+                <Text style={[styles.timePickerNum, { color: colors.text }]}>
+                  {String(pickerMin).padStart(2, '0')}
+                </Text>
+                <Pressable onPress={() => setPickerMin((m) => m <= 0 ? 50 : m - 10)} style={styles.timeArrow}>
+                  <FontAwesome name="chevron-down" size={14} color={colors.textSecondary} />
+                </Pressable>
+              </View>
+              <Pressable onPress={handleSetMeetingTime} style={[styles.timeConfirmBtn, { backgroundColor: Brand.primary }]}>
+                <Text style={styles.timeConfirmText}>확인</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {/* Messages */}
         <ScrollView
           ref={scrollRef}
@@ -260,6 +436,51 @@ export default function ChatRoomScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  // Check-in Banner
+  checkInBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingHorizontal: 16, paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  checkInTextWrap: { flex: 1 },
+  checkInTitle: { fontSize: 15, fontWeight: '700' },
+  checkInDesc: { fontSize: 12, marginTop: 2 },
+  checkInBtn: {
+    paddingHorizontal: 18, paddingVertical: 8,
+    borderRadius: 20,
+  },
+  checkInBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  // Meeting Time
+  meetingBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  meetingTimeText: { fontSize: 13, flex: 1 },
+  meetingSetBtn: {
+    paddingHorizontal: 14, paddingVertical: 6,
+    borderRadius: 8, borderWidth: 1,
+  },
+  meetingSetBtnText: { fontSize: 12, fontWeight: '700' },
+  timePickerWrap: {
+    paddingVertical: 16, paddingHorizontal: 16,
+    borderBottomWidth: 1,
+  },
+  timePickerRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 12,
+  },
+  timePickerCol: { alignItems: 'center', gap: 4 },
+  timeArrow: { padding: 8 },
+  timePickerNum: { fontSize: 32, fontWeight: '800', width: 50, textAlign: 'center' },
+  timePickerColon: { fontSize: 28, fontWeight: '800' },
+  timeConfirmBtn: {
+    paddingHorizontal: 24, paddingVertical: 12,
+    borderRadius: 12, marginLeft: 16,
+  },
+  timeConfirmText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   // Message List
   messageList: { flex: 1 },
