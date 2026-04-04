@@ -52,10 +52,10 @@ export default function MyPageScreen() {
       {/* Profile */}
       <Card style={styles.profileCard}>
         <View style={styles.profileRow}>
-          <Avatar name="김지영" color={Brand.primary} size={56} />
+          <Avatar name="김강래" color={Brand.primary} size={56} />
           <View style={styles.profileInfo}>
-            <Text style={[styles.profileName, { color: colors.text }]}>김지영</Text>
-            <Text style={[styles.profileRole, { color: colors.textSecondary }]}>찬양인도 · 주일팀 리더</Text>
+            <Text style={[styles.profileName, { color: colors.text }]}>김강래</Text>
+            <Text style={[styles.profileRole, { color: colors.textSecondary }]}>예배인도 · 주일팀 리더</Text>
             <View style={styles.profileBadge}>
               <View style={[styles.teamBadge, { backgroundColor: `${Brand.primary}20` }]}>
                 <Text style={[styles.teamBadgeText, { color: Brand.primary }]}>주일 예배팀</Text>

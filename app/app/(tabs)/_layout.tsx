@@ -5,6 +5,45 @@ import { Platform } from 'react-native';
 
 import Colors, { Brand } from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
+import { ScheduleProvider, useSchedule } from '@/constants/ScheduleContext';
+import { partPools, monthlySchedule } from '@/constants/MockData';
+
+const currentUser = '김강래';
+
+function toLocalDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function useChatUnreadCount() {
+  const { scheduleData } = useSchedule();
+  const today = new Date();
+  const start = new Date(today);
+  start.setDate(today.getDate() - today.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const weekStart = toLocalDateStr(start);
+  const weekEnd = toLocalDateStr(end);
+
+  let count = 3; // 전체 공지방
+  const thisWeek = scheduleData.filter((r) => r.date >= weekStart && r.date <= weekEnd);
+  thisWeek.forEach((row, ri) => {
+    row.services.forEach((svc) => {
+      const allMembers = svc.slots.flatMap((s) => s.members);
+      if (allMembers.some((m) => m.includes(currentUser))) {
+        count += ri === 0 ? 5 : ri === 1 ? 2 : 0;
+      }
+    });
+  });
+  partPools.forEach((pool, pi) => {
+    if (pool.candidates.some((c) => c.name === currentUser) && pi === 0) {
+      count += 1;
+    }
+  });
+  return count;
+}
 
 function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
@@ -14,8 +53,17 @@ function TabBarIcon(props: {
 }
 
 export default function TabLayout() {
+  return (
+    <ScheduleProvider>
+      <TabLayoutInner />
+    </ScheduleProvider>
+  );
+}
+
+function TabLayoutInner() {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
+  const unreadCount = useChatUnreadCount();
 
   return (
     <Tabs
@@ -57,7 +105,7 @@ export default function TabLayout() {
         options={{
           title: '채팅',
           tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
-          tabBarBadge: 10,
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
           tabBarBadgeStyle: { backgroundColor: Brand.pink, fontSize: 10 },
         }}
       />

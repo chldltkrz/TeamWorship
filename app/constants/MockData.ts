@@ -147,11 +147,14 @@ export const partPools: PartPool[] = [
     { memberId: 'g4', name: '양민정', color: '#37C09A', unavailableDates: ['2026-04-01', '2026-04-08'] },
   ]},
   { role: '건반', candidates: [
-    { memberId: 'k1', name: '김강래', color: '#F5A623', unavailableDates: [] },
+    { memberId: 'k1', name: '임성수', color: '#F5A623', unavailableDates: [] },
     { memberId: 'k2', name: '정병혁', color: '#E09620', unavailableDates: ['2026-04-01', '2026-04-08'] },
+    { memberId: 'k3', name: '최이삭', color: '#D4901A', unavailableDates: [] },
+    { memberId: 'k4', name: '조은', color: '#C8860F', unavailableDates: [] },
   ]},
   { role: '일렉', candidates: [
     { memberId: 'e1', name: '정병혁', color: '#FF6584', unavailableDates: [] },
+    { memberId: 'e2', name: '김강래', color: '#E8557A', unavailableDates: ['2026-04-08'] },
   ]},
   { role: '베이스', candidates: [
     { memberId: 'b1', name: '소유진', color: '#0984E3', unavailableDates: [] },

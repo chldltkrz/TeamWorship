@@ -46,7 +46,7 @@ export interface ServiceAssignment {
 export interface ChatRoom {
   id: string;
   name: string;
-  type: 'day' | 'part' | 'general';
+  type: 'day' | 'part' | 'general' | 'worship';
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;

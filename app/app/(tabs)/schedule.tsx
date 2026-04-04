@@ -7,7 +7,8 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { monthlySchedule as defaultSchedule, partPools } from '@/constants/MockData';
+import { partPools } from '@/constants/MockData';
+import { useSchedule } from '@/constants/ScheduleContext';
 import type { PartRole, MonthlyScheduleRow, ServiceAssignment } from '@/constants/Types';
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
@@ -48,7 +49,7 @@ function autoGenerate(
   const result: MonthlyScheduleRow[] = [];
   const d = new Date(year, month, 1);
 
-  // 파트별 라운드로빈 카운터
+  // 파트별 라운드로빈 카운터 (서비스 횟수 누적)
   const counters: Record<string, number> = {};
   partPools.forEach((p) => { counters[p.role] = 0; });
 
@@ -58,12 +59,14 @@ function autoGenerate(
       const dayChar = days[d.getDay()];
       const numServices = servicesPerDay[d.getDay()] || 1;
 
+      // 이 날짜 전체에서 이미 배정된 사람 (부 간 중복 허용하되 같은 부 내에서는 겹치지 않게)
       const services: ServiceAssignment[] = [];
       for (let si = 0; si < numServices; si++) {
         const slots: { role: PartRole; members: string[] }[] = [];
         const usedInThisService = new Set<string>();
 
         for (const pool of partPools) {
+          // 불가일인 사람 제외 + 이 부에서 이미 다른 파트에 배정된 사람 제외
           const available = pool.candidates.filter(
             (c) => !c.unavailableDates.includes(dateStr) && !usedInThisService.has(c.name)
           );
@@ -74,12 +77,13 @@ function autoGenerate(
           const picked: string[] = [];
 
           for (let k = 0; k < count; k++) {
-            const idx = (counters[pool.role] + si) % available.length;
-            const member = available[idx % available.length];
-            if (member && !picked.includes(member.name)) {
-              picked.push(member.name);
-              usedInThisService.add(member.name);
-            }
+            // 아직 안 뽑힌 사람 중에서 라운드로빈
+            const remaining = available.filter((c) => !picked.includes(c.name));
+            if (remaining.length === 0) break;
+            const idx = counters[pool.role] % remaining.length;
+            const member = remaining[idx];
+            picked.push(member.name);
+            usedInThisService.add(member.name);
             counters[pool.role]++;
           }
 
@@ -688,19 +692,23 @@ function FullScheduleView({
                 return (
                   <Pressable
                     key={c.memberId}
-                    onPress={() => handleSelectMember(c.name)}
+                    onPress={isUnavailable ? undefined : () => handleSelectMember(c.name)}
+                    disabled={isUnavailable}
                     style={[
                       styles.pickerItem,
                       { borderColor: colors.border },
                       isCurrent && { backgroundColor: `${Brand.primary}15`, borderColor: Brand.primary },
+                      isUnavailable && { opacity: 0.4, backgroundColor: `${Brand.pink}08` },
                     ]}
                   >
-                    <View style={[styles.dropdownDot, { backgroundColor: c.color }]} />
-                    <Text style={[styles.pickerName, { color: colors.text }]}>{c.name}</Text>
+                    <View style={[styles.dropdownDot, { backgroundColor: isUnavailable ? '#999' : c.color }]} />
+                    <Text style={[styles.pickerName, { color: isUnavailable ? colors.textSecondary : colors.text }]}>
+                      {c.name}
+                    </Text>
                     {isUnavailable && (
                       <Text style={[styles.dropdownUnavail, { color: Brand.pink }]}>불가</Text>
                     )}
-                    {isCurrent && (
+                    {isCurrent && !isUnavailable && (
                       <FontAwesome name="check" size={12} color={Brand.primary} />
                     )}
                   </Pressable>
@@ -740,7 +748,7 @@ export default function ScheduleScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const [view, setView] = useState<ViewMode>('week');
-  const [scheduleData, setScheduleData] = useState<MonthlyScheduleRow[]>(defaultSchedule);
+  const { scheduleData, setScheduleData } = useSchedule();
   const [genState, setGenState] = useState<GenerateState>({
     selectedDays: [0, 3, 5],
     servicesPerDay: { 0: 2, 3: 1, 5: 1 },
@@ -749,7 +757,7 @@ export default function ScheduleScreen() {
 
   const handleGenerate = useCallback((data: MonthlyScheduleRow[]) => {
     setScheduleData(data);
-  }, []);
+  }, [setScheduleData]);
 
   const viewTabs: { key: ViewMode; icon: string; label: string }[] = [
     { key: 'week', icon: 'calendar', label: '주간' },
