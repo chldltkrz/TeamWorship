@@ -1,5 +1,5 @@
 import { StyleSheet, ScrollView, View, Text, Pressable, Platform } from 'react-native';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors, { Brand } from '@/constants/Colors';
@@ -7,8 +7,8 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { schedules, monthlySchedule, partPools } from '@/constants/MockData';
-import type { PartRole, MonthlyScheduleRow } from '@/constants/Types';
+import { monthlySchedule as defaultSchedule, partPools } from '@/constants/MockData';
+import type { PartRole, MonthlyScheduleRow, ServiceAssignment } from '@/constants/Types';
 
 const days = ['일', '월', '화', '수', '목', '금', '토'];
 const today = new Date();
@@ -20,6 +20,14 @@ const roleColors: Record<string, string> = {
   'PPT': '#00B894', '온라인': '#636E72',
 };
 
+// 로컬 시간대 기준 YYYY-MM-DD
+function toLocalDateStr(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function getWeekDates() {
   const start = new Date(today);
   start.setDate(today.getDate() - today.getDay());
@@ -30,22 +38,84 @@ function getWeekDates() {
   });
 }
 
+// 자동 스케줄 생성 알고리즘
+function autoGenerate(
+  selectedDays: number[],
+  servicesPerDay: Record<number, number>,
+  year: number,
+  month: number, // 0-indexed
+): MonthlyScheduleRow[] {
+  const result: MonthlyScheduleRow[] = [];
+  const d = new Date(year, month, 1);
+
+  // 파트별 라운드로빈 카운터
+  const counters: Record<string, number> = {};
+  partPools.forEach((p) => { counters[p.role] = 0; });
+
+  while (d.getMonth() === month) {
+    if (selectedDays.includes(d.getDay())) {
+      const dateStr = toLocalDateStr(d);
+      const dayChar = days[d.getDay()];
+      const numServices = servicesPerDay[d.getDay()] || 1;
+
+      const services: ServiceAssignment[] = [];
+      for (let si = 0; si < numServices; si++) {
+        const slots: { role: PartRole; members: string[] }[] = [];
+        const usedInThisService = new Set<string>();
+
+        for (const pool of partPools) {
+          const available = pool.candidates.filter(
+            (c) => !c.unavailableDates.includes(dateStr) && !usedInThisService.has(c.name)
+          );
+          if (available.length === 0) continue;
+
+          // 싱어는 2명, 음향은 2명, 나머지 1명
+          const count = (pool.role === '싱어' || pool.role === '음향') ? Math.min(2, available.length) : 1;
+          const picked: string[] = [];
+
+          for (let k = 0; k < count; k++) {
+            const idx = (counters[pool.role] + si) % available.length;
+            const member = available[idx % available.length];
+            if (member && !picked.includes(member.name)) {
+              picked.push(member.name);
+              usedInThisService.add(member.name);
+            }
+            counters[pool.role]++;
+          }
+
+          if (picked.length > 0) {
+            slots.push({ role: pool.role, members: picked });
+          }
+        }
+
+        services.push({
+          serviceLabel: numServices > 1 ? `${si + 1}부` : undefined,
+          slots,
+        });
+      }
+
+      result.push({
+        date: dateStr,
+        dayLabel: `${d.getDate()}일 (${dayChar})`,
+        services,
+      });
+    }
+    d.setDate(d.getDate() + 1);
+  }
+
+  return result;
+}
+
 // ============ WEEK VIEW ============
-function WeekView() {
+function WeekView({ scheduleData }: { scheduleData: MonthlyScheduleRow[] }) {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const [selectedDay, setSelectedDay] = useState(today.getDay());
   const weekDates = getWeekDates();
 
-  const filteredSchedules = schedules.filter((s) => {
-    const d = new Date(s.date);
-    return d.getDay() === selectedDay;
-  });
-
-  // 월간 스케줄에서 이번주 해당 요일 찾기
   const selectedDate = weekDates[selectedDay];
-  const dateStr = selectedDate.toISOString().split('T')[0];
-  const monthRow = monthlySchedule.find((r) => r.date === dateStr);
+  const dateStr = toLocalDateStr(selectedDate);
+  const monthRow = scheduleData.find((r) => r.date === dateStr);
 
   return (
     <ScrollView style={{ flex: 1 }}>
@@ -54,7 +124,7 @@ function WeekView() {
         {weekDates.map((date, i) => {
           const isSelected = i === selectedDay;
           const isToday = date.toDateString() === today.toDateString();
-          const hasSchedule = monthlySchedule.some((r) => r.date === date.toISOString().split('T')[0]);
+          const hasSchedule = scheduleData.some((r) => r.date === toLocalDateStr(date));
           return (
             <Pressable
               key={i}
@@ -78,18 +148,18 @@ function WeekView() {
         {/* Stats */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.statNumber, { color: Brand.primary }]}>{monthlySchedule.length}</Text>
+            <Text style={[styles.statNumber, { color: Brand.primary }]}>{scheduleData.length}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>이번달 전체</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statNumber, { color: Brand.accent }]}>
-              {monthlySchedule.filter((r) => r.services.length > 1).length}
+              {scheduleData.filter((r) => r.services.length > 1).length}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>주일 (2부)</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[styles.statNumber, { color: Brand.orange }]}>
-              {monthlySchedule.filter((r) => r.note).length}
+              {scheduleData.filter((r) => r.note).length}
             </Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>특별 일정</Text>
           </View>
@@ -141,7 +211,7 @@ function WeekView() {
 
         {/* Upcoming */}
         <SectionHeader title="다가오는 일정" />
-        {monthlySchedule.slice(0, 4).map((row) => (
+        {scheduleData.filter((r) => r.date >= toLocalDateStr(today)).slice(0, 4).map((row) => (
           <Card key={row.date}>
             <View style={styles.upcomingRow}>
               <View style={[styles.upcomingDate, { backgroundColor: `${Brand.primary}20` }]}>
@@ -171,33 +241,62 @@ function WeekView() {
 }
 
 // ============ AUTO GENERATE VIEW ============
-function GenerateView() {
+interface GenerateState {
+  selectedDays: number[];
+  servicesPerDay: Record<number, number>;
+  generated: boolean;
+}
+
+function GenerateView({
+  onGenerate,
+  state,
+  onStateChange,
+}: {
+  onGenerate: (data: MonthlyScheduleRow[]) => void;
+  state: GenerateState;
+  onStateChange: (s: GenerateState) => void;
+}) {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const [expandedRole, setExpandedRole] = useState<string | null>(null);
-  const [generated, setGenerated] = useState(false);
-  const [selectedDays, setSelectedDays] = useState<number[]>([0, 3, 5]); // 일, 수, 금
-  const [servicesPerDay, setServicesPerDay] = useState<Record<number, number>>({ 0: 2, 3: 1, 5: 1 }); // 주일 2부, 수/금 1부
+
+  const { selectedDays, servicesPerDay, generated } = state;
+
+  const setSelectedDays = (fn: (prev: number[]) => number[]) => {
+    onStateChange({ ...state, selectedDays: fn(state.selectedDays), generated: false });
+  };
+  const setServicesPerDay = (fn: (prev: Record<number, number>) => Record<number, number>) => {
+    onStateChange({ ...state, servicesPerDay: fn(state.servicesPerDay), generated: false });
+  };
+  const setGenerated = (v: boolean) => {
+    onStateChange({ ...state, generated: v });
+  };
 
   const toggleDay = (dayIndex: number) => {
-    setSelectedDays((prev) => {
-      if (prev.includes(dayIndex)) {
-        const next = prev.filter((d) => d !== dayIndex);
-        setServicesPerDay((s) => { const copy = { ...s }; delete copy[dayIndex]; return copy; });
-        return next;
-      }
-      setServicesPerDay((s) => ({ ...s, [dayIndex]: 1 }));
-      return [...prev, dayIndex].sort((a, b) => a - b);
-    });
-    setGenerated(false);
+    if (selectedDays.includes(dayIndex)) {
+      const nextDays = selectedDays.filter((d) => d !== dayIndex);
+      const nextServices = { ...servicesPerDay };
+      delete nextServices[dayIndex];
+      onStateChange({ ...state, selectedDays: nextDays, servicesPerDay: nextServices, generated: false });
+    } else {
+      onStateChange({
+        ...state,
+        selectedDays: [...selectedDays, dayIndex].sort((a, b) => a - b),
+        servicesPerDay: { ...servicesPerDay, [dayIndex]: 1 },
+        generated: false,
+      });
+    }
   };
 
   const cycleServiceCount = (dayIndex: number) => {
-    setServicesPerDay((prev) => ({
-      ...prev,
-      [dayIndex]: (prev[dayIndex] || 1) >= 3 ? 1 : (prev[dayIndex] || 1) + 1,
-    }));
-    setGenerated(false);
+    onStateChange({
+      ...state,
+      servicesPerDay: {
+        ...servicesPerDay,
+        [dayIndex]: (servicesPerDay[dayIndex] || 1) >= 3 ? 1 : (servicesPerDay[dayIndex] || 1) + 1,
+      },
+      generated: false,
+    });
   };
 
   // 선택한 요일로 해당 월의 날짜 계산
@@ -208,7 +307,7 @@ function GenerateView() {
     const d = new Date(year, month, 1);
     while (d.getMonth() === month) {
       if (selectedDays.includes(d.getDay())) {
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = toLocalDateStr(d);
         dates.push({
           date: dateStr,
           dayLabel: `${d.getDate()}일 (${days[d.getDay()]})`,
@@ -318,7 +417,7 @@ function GenerateView() {
         </Card>
 
         {/* Part Pools */}
-        <SectionHeader title="파트별 후보자 관리" actionLabel="+ 파트 추가" />
+        <SectionHeader title="파트별 멤버 관리" actionLabel="멤버 관리" />
 
         {partPools.map((pool) => {
           const isExpanded = expandedRole === pool.role;
@@ -368,11 +467,14 @@ function GenerateView() {
                       <Pressable style={[styles.editUnavailBtn, { borderColor: colors.border }]}>
                         <FontAwesome name="calendar-times-o" size={13} color={colors.textSecondary} />
                       </Pressable>
+                      <Pressable style={[styles.removeBtn, { backgroundColor: `${Brand.pink}15` }]}>
+                        <FontAwesome name="times" size={13} color={Brand.pink} />
+                      </Pressable>
                     </View>
                   ))}
                   <Pressable style={[styles.addCandidateBtn, { borderColor: colors.border }]}>
-                    <FontAwesome name="plus" size={12} color={Brand.primary} />
-                    <Text style={[styles.addCandidateText, { color: Brand.primary }]}>후보자 추가</Text>
+                    <FontAwesome name="user-plus" size={12} color={Brand.primary} />
+                    <Text style={[styles.addCandidateText, { color: Brand.primary }]}>멤버 추가</Text>
                   </Pressable>
                 </View>
               )}
@@ -383,7 +485,11 @@ function GenerateView() {
         {/* Generate Button */}
         <Pressable
           style={[styles.generateBtn, generated && styles.generateBtnDone]}
-          onPress={() => setGenerated(true)}
+          onPress={() => {
+            const result = autoGenerate(selectedDays, servicesPerDay, 2026, 3);
+            onGenerate(result);
+            setGenerated(true);
+          }}
         >
           <FontAwesome name={generated ? 'check' : 'magic'} size={18} color="#fff" />
           <Text style={styles.generateBtnText}>
@@ -395,7 +501,7 @@ function GenerateView() {
 
         {generated && (
           <Text style={[styles.generatedHint, { color: colors.textSecondary }]}>
-            전체 스케줄 탭에서 결과를 확인하세요
+            주간 · 전체보기 탭에서 결과를 확인하세요
           </Text>
         )}
       </View>
@@ -404,9 +510,18 @@ function GenerateView() {
 }
 
 // ============ FULL SCHEDULE TABLE VIEW ============
-function FullScheduleView() {
+function FullScheduleView({
+  scheduleData,
+  onUpdate,
+}: {
+  scheduleData: MonthlyScheduleRow[];
+  onUpdate: (data: MonthlyScheduleRow[]) => void;
+}) {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
+  const [editingCell, setEditingCell] = useState<{
+    date: string; si: number; role: PartRole;
+  } | null>(null);
 
   const roles: PartRole[] = ['예배인도', '기타', '건반', '일렉', '베이스', '드럼', '싱어', '음향', '온라인'];
 
@@ -416,6 +531,39 @@ function FullScheduleView() {
     const slot = svc.slots.find((s) => s.role === role);
     return slot ? slot.members.join(' ') : '·';
   };
+
+  const handleSelectMember = (memberName: string) => {
+    if (!editingCell) return;
+    const { date, si, role } = editingCell;
+    const updated = scheduleData.map((row) => {
+      if (row.date !== date) return row;
+      const newServices = row.services.map((svc, idx) => {
+        if (idx !== si) return svc;
+        const slotExists = svc.slots.find((s) => s.role === role);
+        if (slotExists) {
+          return {
+            ...svc,
+            slots: svc.slots.map((s) =>
+              s.role === role ? { ...s, members: memberName ? [memberName] : [] } : s
+            ),
+          };
+        }
+        if (!memberName) return svc;
+        return {
+          ...svc,
+          slots: [...svc.slots, { role, members: [memberName] }],
+        };
+      });
+      return { ...row, services: newServices };
+    });
+    onUpdate(updated);
+    setEditingCell(null);
+  };
+
+  const editingPool = editingCell ? partPools.find((p) => p.role === editingCell.role) : null;
+  const editingRow = editingCell ? scheduleData.find((r) => r.date === editingCell.date) : null;
+  const editingCurrent = editingCell && editingRow
+    ? getMembers(editingRow, editingCell.si, editingCell.role) : '';
 
   const dayBgColors: Record<string, string> = {
     '수': 'rgba(67,184,156,0.08)',
@@ -447,56 +595,127 @@ function FullScheduleView() {
             </View>
 
             {/* Data Rows */}
-            {monthlySchedule.map((row) => {
+            {scheduleData.map((row) => {
               const dayChar = row.dayLabel.match(/\((.)\)/)?.[1] || '';
               const bgColor = dayBgColors[dayChar] || 'transparent';
-              const isSunday = row.services.length > 1;
+              const multiService = row.services.length > 1;
 
               return (
                 <View key={row.date}>
-                  {/* First service row */}
-                  <View style={[styles.tableRow, { backgroundColor: bgColor, borderBottomColor: isSunday ? 'transparent' : colors.border }]}>
-                    <View style={[styles.tableCell, styles.dateCell]}>
-                      <Text style={[styles.dateCellText, { color: colors.text }]}>
-                        {row.dayLabel}
-                      </Text>
-                      {row.note && (
-                        <Text style={[styles.dateCellNote, { color: Brand.orange }]} numberOfLines={1}>
-                          {row.note}
-                        </Text>
-                      )}
-                    </View>
-                    {roles.map((role) => (
-                      <View key={role} style={[styles.tableCell, styles.roleCell]}>
-                        <Text style={[styles.cellText, { color: colors.text }]} numberOfLines={2}>
-                          {getMembers(row, 0, role)}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-
-                  {/* Second service row (Sunday only) */}
-                  {isSunday && (
-                    <View style={[styles.tableRow, { backgroundColor: bgColor, borderBottomColor: colors.border }]}>
+                  {row.services.map((svc, si) => (
+                    <View
+                      key={`${row.date}-${si}`}
+                      style={[
+                        styles.tableRow,
+                        {
+                          backgroundColor: bgColor,
+                          borderBottomColor: si < row.services.length - 1 ? 'transparent' : colors.border,
+                        },
+                      ]}
+                    >
                       <View style={[styles.tableCell, styles.dateCell]}>
-                        <Text style={[styles.dateCellText, { color: colors.textSecondary, fontSize: 11 }]}>
-                          (2부)
-                        </Text>
-                      </View>
-                      {roles.map((role) => (
-                        <View key={role} style={[styles.tableCell, styles.roleCell]}>
-                          <Text style={[styles.cellText, { color: colors.text }]} numberOfLines={2}>
-                            {getMembers(row, 1, role)}
+                        {si === 0 ? (
+                          <>
+                            <Text style={[styles.dateCellText, { color: colors.text }]}>
+                              {row.dayLabel}
+                            </Text>
+                            {row.note && (
+                              <Text style={[styles.dateCellNote, { color: Brand.orange }]} numberOfLines={1}>
+                                {row.note}
+                              </Text>
+                            )}
+                          </>
+                        ) : (
+                          <Text style={[styles.dateCellText, { color: colors.textSecondary, fontSize: 11 }]}>
+                            ({svc.serviceLabel || `${si + 1}부`})
                           </Text>
-                        </View>
-                      ))}
+                        )}
+                      </View>
+                      {roles.map((role) => {
+                        const isEditing = editingCell?.date === row.date && editingCell?.si === si && editingCell?.role === role;
+                        const currentMembers = getMembers(row, si, role);
+
+                        return (
+                          <View key={role} style={[styles.tableCell, styles.roleCell]}>
+                            <Pressable
+                              onPress={() => setEditingCell(isEditing ? null : { date: row.date, si, role })}
+                              style={[
+                                styles.editableCell,
+                                isEditing && { backgroundColor: `${Brand.primary}20`, borderColor: Brand.primary },
+                              ]}
+                            >
+                              <Text
+                                style={[styles.cellText, { color: currentMembers === '·' ? colors.textSecondary : colors.text }]}
+                                numberOfLines={2}
+                              >
+                                {currentMembers}
+                              </Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
                     </View>
-                  )}
+                  ))}
                 </View>
               );
             })}
           </View>
         </ScrollView>
+
+        {/* Member Picker Panel */}
+        {editingCell && editingPool && (
+          <View style={[styles.pickerPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={styles.pickerHeader}>
+              <View style={[styles.roleTag, { backgroundColor: `${roleColors[editingCell.role] || Brand.primary}18` }]}>
+                <Text style={[styles.roleText, { color: roleColors[editingCell.role] || Brand.primary }]}>
+                  {editingCell.role}
+                </Text>
+              </View>
+              <Text style={[styles.pickerDate, { color: colors.textSecondary }]}>
+                {editingRow?.dayLabel}{editingCell.si > 0 ? ` ${editingCell.si + 1}부` : ''}
+              </Text>
+              <Text style={[styles.pickerCurrent, { color: colors.text }]}>
+                현재: {editingCurrent || '없음'}
+              </Text>
+              <Pressable onPress={() => setEditingCell(null)} style={styles.pickerClose}>
+                <FontAwesome name="times" size={16} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+            <View style={styles.pickerList}>
+              {editingPool.candidates.map((c) => {
+                const isUnavailable = c.unavailableDates.includes(editingCell.date);
+                const isCurrent = editingCurrent.includes(c.name);
+                return (
+                  <Pressable
+                    key={c.memberId}
+                    onPress={() => handleSelectMember(c.name)}
+                    style={[
+                      styles.pickerItem,
+                      { borderColor: colors.border },
+                      isCurrent && { backgroundColor: `${Brand.primary}15`, borderColor: Brand.primary },
+                    ]}
+                  >
+                    <View style={[styles.dropdownDot, { backgroundColor: c.color }]} />
+                    <Text style={[styles.pickerName, { color: colors.text }]}>{c.name}</Text>
+                    {isUnavailable && (
+                      <Text style={[styles.dropdownUnavail, { color: Brand.pink }]}>불가</Text>
+                    )}
+                    {isCurrent && (
+                      <FontAwesome name="check" size={12} color={Brand.primary} />
+                    )}
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => handleSelectMember('')}
+                style={[styles.pickerItem, { borderColor: colors.border }]}
+              >
+                <FontAwesome name="times-circle" size={14} color={colors.textSecondary} />
+                <Text style={[styles.pickerName, { color: colors.textSecondary }]}>비우기</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Legend */}
         <View style={styles.legendRow}>
@@ -521,6 +740,16 @@ export default function ScheduleScreen() {
   const colorScheme = useColorScheme() ?? 'dark';
   const colors = Colors[colorScheme];
   const [view, setView] = useState<ViewMode>('week');
+  const [scheduleData, setScheduleData] = useState<MonthlyScheduleRow[]>(defaultSchedule);
+  const [genState, setGenState] = useState<GenerateState>({
+    selectedDays: [0, 3, 5],
+    servicesPerDay: { 0: 2, 3: 1, 5: 1 },
+    generated: false,
+  });
+
+  const handleGenerate = useCallback((data: MonthlyScheduleRow[]) => {
+    setScheduleData(data);
+  }, []);
 
   const viewTabs: { key: ViewMode; icon: string; label: string }[] = [
     { key: 'week', icon: 'calendar', label: '주간' },
@@ -553,9 +782,9 @@ export default function ScheduleScreen() {
         ))}
       </View>
 
-      {view === 'week' && <WeekView />}
-      {view === 'generate' && <GenerateView />}
-      {view === 'full' && <FullScheduleView />}
+      {view === 'week' && <WeekView scheduleData={scheduleData} />}
+      {view === 'generate' && <GenerateView onGenerate={handleGenerate} state={genState} onStateChange={setGenState} />}
+      {view === 'full' && <FullScheduleView scheduleData={scheduleData} onUpdate={setScheduleData} />}
     </View>
   );
 }
@@ -667,6 +896,10 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 10, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
+  removeBtn: {
+    width: 34, height: 34, borderRadius: 10,
+    alignItems: 'center', justifyContent: 'center',
+  },
   addCandidateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: 6, paddingVertical: 12, borderTopWidth: 1, marginTop: 4,
@@ -696,7 +929,32 @@ const styles = StyleSheet.create({
   dateCellText: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
   dateCellNote: { fontSize: 9, fontWeight: '600', marginTop: 2, textAlign: 'center' },
   roleCell: { width: 80, alignItems: 'center' },
-  cellText: { fontSize: 11, fontWeight: '500', textAlign: 'center' },
+  editableCell: {
+    paddingVertical: 4, paddingHorizontal: 2, borderRadius: 6,
+    borderWidth: 1, borderColor: 'transparent', minHeight: 28,
+    justifyContent: 'center' as const, width: '100%',
+  },
+  cellText: { fontSize: 11, fontWeight: '500', textAlign: 'center' as const },
+  dropdownDot: { width: 8, height: 8, borderRadius: 4 },
+  dropdownUnavail: { fontSize: 10, fontWeight: '700' },
+  pickerPanel: {
+    marginTop: 16, borderRadius: 14, borderWidth: 1,
+    padding: 16, overflow: 'hidden',
+  },
+  pickerHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginBottom: 14, flexWrap: 'wrap',
+  },
+  pickerDate: { fontSize: 13, fontWeight: '600' },
+  pickerCurrent: { fontSize: 13, fontWeight: '500', flex: 1 },
+  pickerClose: { padding: 4 },
+  pickerList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pickerItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 10, paddingHorizontal: 14,
+    borderRadius: 10, borderWidth: 1,
+  },
+  pickerName: { fontSize: 14, fontWeight: '600' },
   legendRow: { flexDirection: 'row', justifyContent: 'center', gap: 20, marginTop: 16, paddingBottom: 20 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDot: { width: 12, height: 12, borderRadius: 3 },
