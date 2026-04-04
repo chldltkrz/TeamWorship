@@ -40,7 +40,7 @@ function getWeekDates() {
   });
 }
 
-// 자동 스케줄 생성 알고리즘 (날짜 기반)
+// 자동 스케줄 생성 알고리즘 (서빙 횟수 균등 분배)
 function autoGenerate(
   selectedDates: Set<string>,
   servicesPerDate: Record<string, number>,
@@ -50,8 +50,17 @@ function autoGenerate(
   const result: MonthlyScheduleRow[] = [];
   const d = new Date(year, month, 1);
 
-  const counters: Record<string, number> = {};
-  partPools.forEach((p) => { counters[p.role] = 0; });
+  // 멤버별 누적 서빙 횟수 (파트별)
+  const servingCount: Record<string, Record<string, number>> = {};
+  partPools.forEach((pool) => {
+    pool.candidates.forEach((c) => {
+      if (!servingCount[c.name]) servingCount[c.name] = {};
+      servingCount[c.name][pool.role] = 0;
+    });
+  });
+
+  // 멤버별 전체 서빙 횟수 (파트 무관)
+  const totalServing: Record<string, number> = {};
 
   while (d.getMonth() === month) {
     const dateStr = toLocalDateStr(d);
@@ -59,32 +68,52 @@ function autoGenerate(
       const dayChar = days[d.getDay()];
       const numServices = servicesPerDate[dateStr] || 1;
 
-      // 이 날짜 전체에서 이미 배정된 사람 (부 간 중복 허용하되 같은 부 내에서는 겹치지 않게)
       const services: ServiceAssignment[] = [];
+      // 이 날짜에 배정된 사람 (부 간 중복 최소화)
+      const usedInThisDate = new Map<string, number>(); // name → 몇 부에 배정됐는지
+
       for (let si = 0; si < numServices; si++) {
         const slots: { role: PartRole; members: string[] }[] = [];
         const usedInThisService = new Set<string>();
 
         for (const pool of partPools) {
-          // 불가일인 사람 제외 + 이 부에서 이미 다른 파트에 배정된 사람 제외
+          // 1) 불가일 제외
+          // 2) 같은 부 내 다른 파트에 이미 배정된 사람 제외
           const available = pool.candidates.filter(
             (c) => !c.unavailableDates.includes(dateStr) && !usedInThisService.has(c.name)
           );
           if (available.length === 0) continue;
 
-          // 싱어는 2명, 음향은 2명, 나머지 1명
-          const count = (pool.role === '싱어' || pool.role === '음향') ? Math.min(2, available.length) : 1;
+          // 서빙 횟수 기준 정렬 (적은 사람 우선)
+          // 동점이면: 이 날짜에 아직 안 뽑힌 사람 우선, 그다음 전체 서빙 적은 사람 우선
+          const sorted = [...available].sort((a, b) => {
+            const countA = servingCount[a.name]?.[pool.role] || 0;
+            const countB = servingCount[b.name]?.[pool.role] || 0;
+            if (countA !== countB) return countA - countB; // 해당 파트 서빙 적은 사람 우선
+
+            const dateUsedA = usedInThisDate.get(a.name) || 0;
+            const dateUsedB = usedInThisDate.get(b.name) || 0;
+            if (dateUsedA !== dateUsedB) return dateUsedA - dateUsedB; // 이 날짜에 덜 쓰인 사람 우선
+
+            const totalA = totalServing[a.name] || 0;
+            const totalB = totalServing[b.name] || 0;
+            return totalA - totalB; // 전체 서빙 적은 사람 우선
+          });
+
+          const count = (pool.role === '싱어' || pool.role === '음향') ? Math.min(2, sorted.length) : 1;
           const picked: string[] = [];
 
           for (let k = 0; k < count; k++) {
-            // 아직 안 뽑힌 사람 중에서 라운드로빈
-            const remaining = available.filter((c) => !picked.includes(c.name));
+            const remaining = sorted.filter((c) => !picked.includes(c.name));
             if (remaining.length === 0) break;
-            const idx = counters[pool.role] % remaining.length;
-            const member = remaining[idx];
+            const member = remaining[0]; // 가장 서빙 적은 사람
             picked.push(member.name);
             usedInThisService.add(member.name);
-            counters[pool.role]++;
+            // 카운트 업데이트
+            if (!servingCount[member.name]) servingCount[member.name] = {};
+            servingCount[member.name][pool.role] = (servingCount[member.name][pool.role] || 0) + 1;
+            totalServing[member.name] = (totalServing[member.name] || 0) + 1;
+            usedInThisDate.set(member.name, (usedInThisDate.get(member.name) || 0) + 1);
           }
 
           if (picked.length > 0) {
