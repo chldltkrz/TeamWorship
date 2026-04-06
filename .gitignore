@@ -1,0 +1,17 @@
+# OMC runtime (optional, if using oh-my-claudecode)
+.omc/sessions/
+.omc/state/
+.omc/artifacts/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
